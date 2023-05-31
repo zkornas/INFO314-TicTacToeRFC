@@ -32,6 +32,7 @@ public class tttserver {
 
         public void run() {
             try {
+                System.out.println("Listening for TCP connection on port " + 3116);
                 Socket sock = soc.accept();
                 System.out.println("Connection Successful!");
                 PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
@@ -51,6 +52,7 @@ public class tttserver {
 
         public void run() {
             try {
+                System.out.println("Listening for TCP connection on port " + 3116);
                 byte[] b = new byte[256];
                 DatagramPacket pack = new DatagramPacket(b, b.length);
                 soc.receive(pack);
