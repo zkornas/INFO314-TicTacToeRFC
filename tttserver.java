@@ -4,12 +4,15 @@ import java.util.*;
 
 public class tttserver {
 
+    public static int PORT = 3116;
+    // Hashmap <
+
 // Open TCP Socket and wait for connection
 // Open UDP socket and wait for connection
 
     public static void main(String[] args) throws Exception {
-        ServerSocket servSockT = new ServerSocket(3116);
-        DatagramSocket servSockU = new DatagramSocket(3116);
+        ServerSocket servSockT = new ServerSocket(PORT);
+        DatagramSocket servSockU = new DatagramSocket(PORT);
         Thread t1 = new Thread(new MyRunnableTCP(servSockT));
         Thread t2 = new Thread(new MyRunnableUDP(servSockU));
 
@@ -46,6 +49,23 @@ public class tttserver {
     
                 // Save or process the received data as needed
                 String savedData = inputData.toString();
+                System.out.println(savedData);
+
+                // Split savedData and grab first word
+                    // Check version if version 1
+                    // Check if hello -> handleClient
+                        // if not hello -> void
+                // call helper method to decide what to do based on word
+                String[] message = savedData.split(" ");
+                if(!message[1].equals("1")){
+                    // Invalid version
+                } else if(!message[0].equals("HELO")) {
+                    // Invalid start
+                } else {
+                    handleClient(message);
+                }
+
+
                 System.out.println("Received data: " + savedData);
     
                 in.close();
@@ -56,7 +76,6 @@ public class tttserver {
             }
         }
     }
-    
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
@@ -83,8 +102,31 @@ public class tttserver {
 
         }
     }
-    
 
+
+    
+    // Send Acknowledgment with "SESS <version> <sess ID>""
+    // sessCount = 1;
+    // sessCount++;
+    private static void handleClient(String[] message) {
+        String clientID = message[2];
+    
+        try {
+            String acknowledgment = "ACKN " + clientID;
+    
+            Socket clientSocket = new Socket("localhost", PORT);
+    
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+    
+            out.println(acknowledgment);
+    
+            out.close();
+            clientSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
 
 }
 
