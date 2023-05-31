@@ -38,18 +38,18 @@ public class tttserver {
                 System.out.println("Listening for TCP connection on port " + 3116);
                 Socket sock = soc.accept();
                 System.out.println("Connection Successful!");
-    
+
                 BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-                String receivedData;
+                //String receivedData = "";
                 StringBuilder inputData = new StringBuilder();
     
-                while ((receivedData = in.readLine()) != null) {
-                    inputData.append(receivedData);
+                while (in.ready()) {
+                    inputData.append((char) in.read());
                 }
     
                 // Save or process the received data as needed
                 String savedData = inputData.toString();
-                System.out.println(savedData);
+                System.out.println("Received data: " + savedData);
 
                 // Split savedData and grab first word
                     // Check version if version 1
@@ -62,11 +62,14 @@ public class tttserver {
                 } else if(!message[0].equals("HELO")) {
                     // Invalid start
                 } else {
-                    handleClient(message);
+                    // handleClient(message);
+                    String response = handleClient(message);
+                    PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+        
+                    out.println(response);
+                    out.close();
+                    soc.close();
                 }
-
-
-                System.out.println("Received data: " + savedData);
     
                 in.close();
                 sock.close();
@@ -75,7 +78,13 @@ public class tttserver {
                 e.printStackTrace();
             }
         }
-    }
+
+        public static String handleClient(String[] message) {
+            String clientID = message[2];
+            String acknowledgment = "ACKN " + clientID;
+            return acknowledgment;
+            }
+        }
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
@@ -108,24 +117,24 @@ public class tttserver {
     // Send Acknowledgment with "SESS <version> <sess ID>""
     // sessCount = 1;
     // sessCount++;
-    private static void handleClient(String[] message) {
-        String clientID = message[2];
+    // private static void handleClient(String[] message) {
+    //     String clientID = message[2];
     
-        try {
-            String acknowledgment = "ACKN " + clientID;
+    //     try {
+    //         String acknowledgment = "ACKN " + clientID;
     
-            Socket clientSocket = new Socket("localhost", PORT);
+    //         //Socket clientSocket = new Socket("localhost", PORT);
     
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+    //         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
     
-            out.println(acknowledgment);
+    //         out.println(acknowledgment);
     
-            out.close();
-            clientSocket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    //         out.close();
+    //         clientSocket.close();
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
     
 
 }

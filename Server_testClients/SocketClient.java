@@ -5,14 +5,16 @@ public class SocketClient {
     public static void main(String... args) {
         String hostname = args[0];
         int port = Integer.parseInt(args[1]);
-        String clientID = args[2];
+        String req = "";
+        for (int i = 2; i < args.length; i++) {
+            req += args[i] + " ";
+        }
 
         try (Socket s = new Socket(hostname, port)) {
             s.setSoTimeout(15000);
 
             OutputStream out = s.getOutputStream();
-            out.write(clientID.getBytes());
-            out.flush();
+            out.write(req.getBytes());
 
             InputStream in = s.getInputStream();
             StringBuilder response = new StringBuilder();
@@ -21,7 +23,7 @@ public class SocketClient {
                 response.append((char) c);
             }
 
-            System.out.println("Server response: " + response.toString());
+            System.out.println("Server response: " + response);
 
         } catch (IOException ex) {
             System.err.println(ex);
