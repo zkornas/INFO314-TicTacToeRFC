@@ -62,29 +62,33 @@ public class tttserver {
                 } else if(!message[0].equals("HELO")) {
                     // Invalid start
                 } else {
-                    // handleClient(message);
-                    String response = handleClient(message);
-                    PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
-        
-                    out.println(response);
-                    out.close();
-                    soc.close();
+                    handleClient(message, sock);
                 }
     
                 in.close();
                 sock.close();
+                soc.close();
     
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
-        public static String handleClient(String[] message) {
+        public static void handleClient(String[] message, Socket sock) {
             String clientID = message[2];
             String acknowledgment = "ACKN " + clientID;
-            return acknowledgment;
+
+            try {
+                PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+                out.println(acknowledgment);
+                out.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+
         }
+    }
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
