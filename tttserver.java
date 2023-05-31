@@ -7,62 +7,68 @@ public class tttserver {
 // Open TCP Socket and wait for connection
 // Open UDP socket and wait for connection
 
-public static void main(String[] args) throws Exception {
-    ServerSocket servSockT = new ServerSocket(3116);
-    DatagramSocket servSockU = new DatagramSocket(3116);
-    Thread t1 = new Thread(new MyRunnableTCP(servSockT));
-    Thread t2 = new Thread(new MyRunnableUDP(servSockU));
-    while (true) {
+    public static void main(String[] args) throws Exception {
+        ServerSocket servSockT = new ServerSocket(3116);
+        DatagramSocket servSockU = new DatagramSocket(3116);
+        Thread t1 = new Thread(new MyRunnableTCP(servSockT));
+        Thread t2 = new Thread(new MyRunnableUDP(servSockU));
+
         t2.start();
         t1.start();
-    }
-    servSockU.close();
-    servSockT.close();
-}
 
+        t1.join();
+        t2.join();
 
-public static class MyRunnableTCP implements Runnable {
-    private ServerSocket soc;
-    public MyRunnableTCP (ServerSocket s) {
-        this.soc = s;
+        servSockU.close();
+        servSockT.close();
     }
 
-    public void run() {
-        try {
-            Socket sock = soc.accept();
-            System.out.println("Connection Successful!");
-            PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
-            out.close();
 
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
-    }
-}
-
-public static class MyRunnableUDP implements Runnable {
-    private DatagramSocket soc;
-    public MyRunnableUDP (DatagramSocket s) {
-        this.soc = s;
-    }
-
-    public void run() {
-        try {
-            byte[] b = new byte[256];
-            DatagramPacket pack = new DatagramPacket(b, b.length);
-            soc.receive(pack);
-            InetAddress address = pack.getAddress();
-            int port = pack.getPort();
-            byte[] response = message.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
-            soc.send(newP);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+    public static class MyRunnableTCP implements Runnable {
+        private ServerSocket soc;
+        public MyRunnableTCP (ServerSocket s) {
+            this.soc = s;
         }
 
+        public void run() {
+            try {
+                Socket sock = soc.accept();
+                System.out.println("Connection Successful!");
+                PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+                out.close();
+
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
-}
+
+    public static class MyRunnableUDP implements Runnable {
+        private DatagramSocket soc;
+        public MyRunnableUDP (DatagramSocket s) {
+            this.soc = s;
+        }
+
+        public void run() {
+            try {
+                byte[] b = new byte[256];
+                DatagramPacket pack = new DatagramPacket(b, b.length);
+                soc.receive(pack);
+                InetAddress address = pack.getAddress();
+                int port = pack.getPort();
+                String message = new String(pack.getData(), 0, pack.getLength());
+                byte[] response = message.getBytes(); // message will be the response
+                DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
+                soc.send(newP);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+    
+
 
 }
 
