@@ -23,26 +23,40 @@ public class tttserver {
         servSockT.close();
     }
 
-
     public static class MyRunnableTCP implements Runnable {
         private ServerSocket soc;
-        public MyRunnableTCP (ServerSocket s) {
+        
+        public MyRunnableTCP(ServerSocket s) {
             this.soc = s;
         }
-
+    
         public void run() {
             try {
                 System.out.println("Listening for TCP connection on port " + 3116);
                 Socket sock = soc.accept();
                 System.out.println("Connection Successful!");
-                PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
-                out.close();
-
-            } catch(Exception e) {
+    
+                BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+                String receivedData;
+                StringBuilder inputData = new StringBuilder();
+    
+                while ((receivedData = in.readLine()) != null) {
+                    inputData.append(receivedData);
+                }
+    
+                // Save or process the received data as needed
+                String savedData = inputData.toString();
+                System.out.println("Received data: " + savedData);
+    
+                in.close();
+                sock.close();
+    
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
+    
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
@@ -52,7 +66,7 @@ public class tttserver {
 
         public void run() {
             try {
-                System.out.println("Listening for TCP connection on port " + 3116);
+                System.out.println("Listening for UDP connection on port " + 3116);
                 byte[] b = new byte[256];
                 DatagramPacket pack = new DatagramPacket(b, b.length);
                 soc.receive(pack);
