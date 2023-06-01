@@ -49,8 +49,11 @@ public class tttserver {
                     // There is a problem here, while the connection stays open
                     // with the client, this loops forever as the input is never
                     // null, until it times out.
-                    while ((line = in.readLine()) != null) {
-                        inputData.append(line);
+
+                    // I reverted while loop to way it was, should work correct
+
+                    while (in.ready()) {
+                        inputData.append((char) in.read());
                     }
 
                     // Save or process the received data as needed
