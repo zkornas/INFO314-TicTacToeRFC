@@ -35,21 +35,26 @@ public class tttserver {
     
         public void run() {
             try {
-                while(true){
+                while (true) {
                     System.out.println("Listening for TCP connection on port " + 3116);
                     Socket sock = soc.accept();
                     System.out.println("Connection Successful!");
 
                     BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-                    //String receivedData = "";
+
                     StringBuilder inputData = new StringBuilder();
-        
-                    while (in.ready()) {
-                        inputData.append((char) in.read());
+
+                    String line;
+
+                    // There is a problem here, while the connection stays open
+                    // with the client, this loops forever as the input is never
+                    // null, until it times out.
+                    while ((line = in.readLine()) != null) {
+                        inputData.append(line);
                     }
-        
+
                     // Save or process the received data as needed
-                    String savedData = inputData.toString();
+                    String savedData = inputData.toString().trim();
                     System.out.println("Received data: " + savedData);
 
                     // Creates output object with Socket
@@ -57,24 +62,27 @@ public class tttserver {
 
                     // Split savedData and grab first word
                     String[] message = savedData.split(" ");
-                    if(!message[0].equals("HELO")){
+                    if (!message[0].equals("HELO")) {
                         out.println("Error: Invalid start.");
                         out.close();
-                    } else if(!message[1].equals("1")) {
+                    } else if (!message[1].equals("1")) {
                         out.println("Error: Invalid version.");
                         out.close();
                     } else {
+                        System.out.println("Invoking handleClient");
                         handleClient(message, sock, out);
                     }
-                }   
-                // in.close();
-                // sock.close();
-                // soc.close();
-    
+                    
+                    // Terminate the loop if "exit" is received
+                    if (savedData.equals("exit")) {
+                        break;
+                    }
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+
 
         // Handles response to client
         public static void handleClient(String[] message, Socket sock, PrintWriter out) {
@@ -83,7 +91,7 @@ public class tttserver {
 
             try {
                 out.println(acknowledgment);
-                out.close();
+                // out.close();
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -117,10 +125,9 @@ public class tttserver {
 
         }
     }
+}
 
-
-    
-    // Send Acknowledgment with "SESS <version> <sess ID>""
+   // Send Acknowledgment with "SESS <version> <sess ID>""
     // sessCount = 1;
     // sessCount++;
     // private static void handleClient(String[] message) {
@@ -141,10 +148,6 @@ public class tttserver {
     //         e.printStackTrace();
     //     }
     // }
-    
-
-}
-
 
 // Client will connect with hello message "HELO <version number> <client ID>"
 // ex: "HELO 1 zach"

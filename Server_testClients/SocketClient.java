@@ -19,12 +19,14 @@ public class SocketClient {
                 System.out.print("Enter a command (or 'exit' to quit): ");
                 userInput = userInputReader.readLine();
 
-                out.write(userInput.getBytes());
+                PrintWriter writer = new PrintWriter(out, true);
+                writer.println(userInput + "\n");
 
                 StringBuilder response = new StringBuilder();
-                InputStreamReader reader = new InputStreamReader(in, "ASCII");
-                for (int c = reader.read(); c != -1; c = reader.read()) {
-                    response.append((char) c);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
                 }
 
                 System.out.println("Server response: " + response);
