@@ -18,7 +18,7 @@ public class tttserver {
 
         t2.start();
         t1.start();
-
+        
         t1.join();
         t2.join();
 
@@ -35,51 +35,53 @@ public class tttserver {
     
         public void run() {
             try {
-                System.out.println("Listening for TCP connection on port " + 3116);
-                Socket sock = soc.accept();
-                System.out.println("Connection Successful!");
+                while(true){
+                    System.out.println("Listening for TCP connection on port " + 3116);
+                    Socket sock = soc.accept();
+                    System.out.println("Connection Successful!");
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-                //String receivedData = "";
-                StringBuilder inputData = new StringBuilder();
-    
-                while (in.ready()) {
-                    inputData.append((char) in.read());
-                }
-    
-                // Save or process the received data as needed
-                String savedData = inputData.toString();
-                System.out.println("Received data: " + savedData);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+                    //String receivedData = "";
+                    StringBuilder inputData = new StringBuilder();
+        
+                    while (in.ready()) {
+                        inputData.append((char) in.read());
+                    }
+        
+                    // Save or process the received data as needed
+                    String savedData = inputData.toString();
+                    System.out.println("Received data: " + savedData);
 
-                // Split savedData and grab first word
-                    // Check version if version 1
-                    // Check if hello -> handleClient
-                        // if not hello -> void
-                // call helper method to decide what to do based on word
-                String[] message = savedData.split(" ");
-                if(!message[1].equals("1")){
-                    // Invalid version
-                } else if(!message[0].equals("HELO")) {
-                    // Invalid start
-                } else {
-                    handleClient(message, sock);
-                }
-    
-                in.close();
-                sock.close();
-                soc.close();
+                    // Creates output object with Socket
+                    PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+
+                    // Split savedData and grab first word
+                    String[] message = savedData.split(" ");
+                    if(!message[0].equals("HELO")){
+                        out.println("Error: Invalid start.");
+                        out.close();
+                    } else if(!message[1].equals("1")) {
+                        out.println("Error: Invalid version.");
+                        out.close();
+                    } else {
+                        handleClient(message, sock, out);
+                    }
+                }   
+                // in.close();
+                // sock.close();
+                // soc.close();
     
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
-        public static void handleClient(String[] message, Socket sock) {
+        // Handles response to client
+        public static void handleClient(String[] message, Socket sock, PrintWriter out) {
             String clientID = message[2];
             String acknowledgment = "ACKN " + clientID;
 
             try {
-                PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
                 out.println(acknowledgment);
                 out.close();
 
