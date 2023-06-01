@@ -50,7 +50,7 @@ public class tttserver {
                     // with the client, this loops forever as the input is never
                     // null, until it times out.
 
-                    // I reverted while loop to way it was, should work correct
+                    // While loop should work correct
 
                     while (in.ready()) {
                         inputData.append((char) in.read());
