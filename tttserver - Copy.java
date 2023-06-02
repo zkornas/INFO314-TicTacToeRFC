@@ -15,18 +15,20 @@ public class tttserver {
         ServerSocket servSockT = new ServerSocket(PORT);
         DatagramSocket servSockU = new DatagramSocket(PORT);
 
-        while(LISTEN == true) {
+        Socket socket = null;
 
-        Thread t1 = new Thread(new MyRunnableTCP(servSockT));
-        t1.setDaemon(true);
-        Thread t2 = new Thread(new MyRunnableUDP(servSockU));
-        t2.setDaemon(true);
+        while((socket = servSockT.accept()) != null) {
+
+        Thread t1 = new Thread(new MyRunnableTCP(socket));
+        //t1.setDaemon(true);
+        //Thread t2 = new Thread(new MyRunnableUDP(servSockU));
+        //t2.setDaemon(true);
 
         t1.start();
-        t2.start();
+        //t2.start();
 
-        t1.join();
-        t2.join();
+        //t1.join();
+        //t2.join();
 
         }
 
@@ -36,17 +38,17 @@ public class tttserver {
     }
 
     public static class MyRunnableTCP implements Runnable {
-        private ServerSocket soc;
+        private Socket sock;
         
-        public MyRunnableTCP(ServerSocket s) {
-            this.soc = s;
+        public MyRunnableTCP(Socket s) {
+            this.sock = s;
         }
     
         public void run() {
             try {
 
                 System.out.println("Listening for TCP connection on port " + 3116);
-                Socket sock = soc.accept();
+                //Socket sock = soc.accept();
                 System.out.println("Connection Successful!");
 
                 while (true) {

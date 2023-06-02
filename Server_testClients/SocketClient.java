@@ -38,8 +38,6 @@ public class SocketClient {
                     response.append(line);
                 }
 
-                System.out.println(count);
-
                 System.out.println("Server response: " + response);
             } while (!userInput.equals("exit"));
 
