@@ -6,7 +6,11 @@ public class tttserver {
 
     public static int PORT = 3116;
     public static Boolean LISTEN = true;
-    // Hashmap <
+    public static Hashmap <Int, String> sessionsAndClients = new HashMap<Int, String>();
+    public static int sessionID = 0;
+    public static final int version = 1;
+    public static Hashmap <Int, String[]> games = new Hashmap<>();
+    public static int gameID = 0;
 
 // Open TCP Socket and wait for connection
 // Open UDP socket and wait for connection
@@ -82,15 +86,17 @@ public class tttserver {
                     // Split savedData and grab first word
                     String[] message = savedData.split(" ");
 
-                    if (!message[0].equals("HELO")) {
-                        out.println("Error: Invalid start.");
+                    if (message[0].equals("HELO")) {
+                        System.out.println("Invoking handleClient");
+                        startSession(message, sock, out);
                         // out.close();
-                    } else if (!message[1].equals("1")) {
+                    } else if (!message[1].equals(version)) {
                         out.println("Error: Invalid version.");
                         // out.close();
-                    } else {
-                        System.out.println("Invoking handleClient");
-                        handleClient(message, sock, out);
+                    } else if (message[1].equals("CREA")){
+                        createGame(message, sock, out);
+                    } else if (message[1].equals("LIST")){
+                        listGames(message, sock, out);
                     }
                     
                     // Terminate the loop if "exit" is received
@@ -108,9 +114,11 @@ public class tttserver {
 
 
         // Handles response to client
-        public static void handleClient(String[] message, Socket sock, PrintWriter out) {
+        public static void startSession(String[] message, Socket sock, PrintWriter out) {
             String clientID = message[2];
-            String acknowledgment = "ACKN " + clientID;
+            String acknowledgment = "SESS " + version + sessionID;
+            sessionsAndClients.put(sessionID, clientID);
+            sessionID++;
 
             try {
                 out.println(acknowledgment);
@@ -122,7 +130,39 @@ public class tttserver {
             }
 
         }
+
+        public static void createGame(String[] message, Socket sock, PrintWriter out){
+            string clientID = message[2];
+            String[] gameElements = {clientID, null, "|*|*|*|*|*|*|*|*|*|"};
+            games.put(gameID, gameElements);
+            gameID++;
+            string response = "JOND " + clientID + gameID;
+
+            try {
+                out.println(response);
+                System.out.println("Sent " + response);
+                // out.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+
     }
+
+    // GDBY, JOIN, LIST, MOVE, QUIT, STAT
+
+    // Zach:
+        // LIST
+        // MOVE
+        // STAT
+
+    // Vic:
+        // GDBY
+        // QUIT
+        // JOIN
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
