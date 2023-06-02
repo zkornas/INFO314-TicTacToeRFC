@@ -52,9 +52,9 @@ public class tttserver {
 
                     // While loop should work correct
 
-                    while (in.ready()) {
-                        inputData.append((char) in.read());
-                    }
+                    while ((line = in.readLine()) != null && !line.isEmpty()) {
+                        inputData.append(line);
+                    }                   
 
                     // Save or process the received data as needed
                     String savedData = inputData.toString().trim();
@@ -92,13 +92,13 @@ public class tttserver {
             String clientID = message[2];
             String acknowledgment = "ACKN " + clientID;
 
-            try {
+            try{
+                System.out.println("Sending " + acknowledgment);
                 out.println(acknowledgment);
-                // out.close();
-
+                out.close();
             } catch (Exception e) {
                 e.printStackTrace();
-            }
+            }            
 
         }
     }

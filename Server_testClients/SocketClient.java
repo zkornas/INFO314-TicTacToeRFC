@@ -21,11 +21,12 @@ public class SocketClient {
             
             String userInput;
 
+            PrintWriter writer = new PrintWriter(out, true);
+
             do {
                 System.out.print("Enter a command (or 'exit' to quit): ");
                 userInput = userInputReader.readLine();
 
-                PrintWriter writer = new PrintWriter(out, true);
                 writer.println(userInput + "\n");
 
                 StringBuilder response = new StringBuilder();
@@ -33,9 +34,11 @@ public class SocketClient {
                 String line;
 
                 // Changed while loop to (ready()) condition
-                while (reader.ready()) {
-                    response.append((char) reader.read());
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
                 }
+
+                System.out.println(count);
 
                 System.out.println("Server response: " + response);
             } while (!userInput.equals("exit"));
