@@ -8,8 +8,11 @@ public class TTTClient {
     private BufferedReader in;
     private PrintWriter out;
     private Scanner scanner;
-	private String hostname;
-	private int port;
+	public String hostname;
+	public int port;
+	public String protocol;
+	public String clientIdentifier;
+	public boolean inGame;
 
 	public TTTClient(String hostname, int port) {
 		scanner = new Scanner(System.in);
@@ -24,18 +27,32 @@ public class TTTClient {
             tcpSocket = new Socket(hostname, port);
             in = new BufferedReader(new InputStreamReader(tcpSocket.getInputStream()));
             out = new PrintWriter(tcpSocket.getOutputStream(), true);
+			protocol = "TCP";
         } else if (type.equalsIgnoreCase("UDP")) {
             udpSocket = new DatagramSocket();
+			protocol = "UDP";
             // in = new BufferedReader(new InputStreamReader(udpSocket.getInputStream()));
             // out = new PrintWriter(udpSocket.getOutputStream(), true);
         } else {
-            throw new IllegalArgumentException("Invalid connection type. Only TCP or UDP is allowed.");
+            throw new IllegalArgumentException("Invalid connection type.");
         }
     }
     
     // Method to send messages
     public void sendMessage(String message) {
-        out.println(message);
+		try {
+			if (protocol.equals("TCP")) {
+				out.println(message);
+
+			} else {
+				byte[] messageBytes = message.getBytes();
+				InetAddress server = InetAddress.getByName(hostname);
+				DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, server, port);
+				udpSocket.send(packet);
+			}
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
     }
     
     // Method to receive messages
@@ -52,12 +69,48 @@ public class TTTClient {
             case "BORD":
                 // Handle BORD command
                 break;
-            case "CREA":
-                // Handle CREA command
-                break;
             // Continue with other commands...
         }
     }
+
+	public void sendHELO() {
+		System.out.println("What would you like your client identifier to be? ");
+		String identifier = scanner.nextLine();
+		clientIdentifier = identifier;
+		String message = "HELO 1 " + identifier + "\r\n";
+		sendMessage(message);
+		System.out.println("Sent HELO message to server");
+	}
+
+	public void startGame() throws IOException {
+		sendHELO();
+		while (true) {
+			while (!inGame) {
+				System.out.println("Available Commands:");
+				System.out.println("  JOIN <game-id>");
+				System.out.println("  CREA");
+				System.out.println("  LIST <CURR/ALL>");
+				System.out.println("  STAT <game-id>");
+				System.out.println("  GDBY");
+		
+				String command = scanner.nextLine();
+				String[] commandParts = command.split(" ");
+				if (commandParts[0].equals("CREA")) {
+					command += " " + clientIdentifier;
+				}
+				sendMessage(command + "\r\n");
+				String serverMessage = receiveMessage();
+				processCommand(serverMessage);
+			}
+			if (inGame) {
+				System.out.println("Available Commands:");
+				System.out.println("  MOVE");
+				System.out.println("  QUIT");
+				System.out.println("  GDBY");
+				String command = scanner.nextLine();
+			}
+		}
+	}
     
     public static void main(String[] args) {
         // Check the command-line arguments for protocol type
@@ -69,8 +122,8 @@ public class TTTClient {
 			hostname = args[1];
 			port = Integer.parseInt(args[2]);
 		} else {
-			hostname = "localhost";
-			port = 3316;
+			hostname = "127.0.0.1";
+			port = 3116;
 			protocol = "TCP";
 		}
 
@@ -79,8 +132,9 @@ public class TTTClient {
             TTTClient client = new TTTClient(hostname, port);
             // Connect to the server
             client.establishConnection(protocol);
-
+		
             // Start the interactive loop
+			client.startGame(); 
 
         } catch (Exception e) {
             e.printStackTrace();
