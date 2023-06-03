@@ -7,6 +7,7 @@ public class tttserver {
     public static int PORT = 3116;
     public static Boolean LISTEN = true;
     public static HashMap <Integer, String> sessionsAndClients = new HashMap<Integer, String>();
+    public static HashMap <String, Socket> clientSockets = new HashMap<>();
     public static int sessionID = 0;
     public static final int version = 1;
     public static HashMap <Integer, String[]> games = new HashMap<>();
@@ -156,8 +157,8 @@ public class tttserver {
         /////////////////////
 
         public static void quitGame(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[2];
-            String gameID = message[3];
+            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
+            String gameID = message[2];
             String[] elements = games.get(gameID);
             String winner = elements[0];
             if (elements[0].equals(clientID)) {
@@ -177,7 +178,7 @@ public class tttserver {
         }
 
         public static void goodbye(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[2];
+            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
             List<Integer> quit = new ArrayList<>();
             for (int i : games.keySet()) {
                 String[] elements = games.get(i);
@@ -193,7 +194,25 @@ public class tttserver {
         }
 
         public static void join(String[] message, Socket sock, PrintWriter out) {
-            // IP
+            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
+            String gameID = message[2];
+            String[] state = games.get(gameID);
+            state[2] = clientID; 
+            
+            String response = "JOND " + clientID + gameID;
+
+            try {
+                out.println(response);
+                System.out.println("Sent " + response);
+
+                // SEND YRMV HERE TO CLIENT 1
+
+                // out.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
         }
 
     // GDBY, JOIN, LIST, MOVE, QUIT, STAT
