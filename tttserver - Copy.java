@@ -99,7 +99,17 @@ public class tttserver {
                     } else if (message[0].equals("MOVE")){
                         System.out.println("Invoking makeMove");
                         makeMove(message, sock, out);
+                    } else if (message[1].equals("QUIT")){
+                        System.out.println("Invoking quitGame");
+                        quitGame(message, sock, out);
+                    } else if (message[1].equals("GDBY")){
+                        System.out.println("Invoking goodbye");
+                        goodbye(message, sock, out);
+                    } else if (message[1].equals("QUIT")){
+                        System.out.println("Invoking quitGame");
+                        quitGame(message, sock, out);
                     }
+                    
                     
                     // Terminate the loop if "exit" is received
                     if (savedData.equals("exit")) {
@@ -199,6 +209,14 @@ public class tttserver {
 
         public static void makeMove(String[] message, Socket sock, PrintWriter out){
             // Assuming structure: MOVE <game ID> <position> <client ID>
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
+            String[] moveElements = {"MOVE", message[1], message[2], clientID};
             String response = "";
             Boolean wasSuccess = null;
             String opp = "";
@@ -206,31 +224,31 @@ public class tttserver {
             String playerO = "";
             char playerIcon = 'X';
 
-            if(!games.containsKey(message[1])){
+            if(!games.containsKey(moveElements[1])){
                 response = "Error: Game not found.";
             // Checks if the client's ID matches the IDs of the players in the game map
-            } else if(!message[3].equals((games.get(message[1]))[0]) || !message[3].equals((games.get(message[1]))[1])){
+            } else if(!moveElements[3].equals((games.get(moveElements[1]))[0]) || !moveElements[3].equals((games.get(moveElements[1]))[1])){
                 response = "Error: You are not a player of this game.";
             } else {
-                String board = (games.get(message[1]))[3];
+                String board = (games.get(moveElements[1]))[3];
 
                 // Checks if player is X or O based on position in map value
-                if (message[3].equals(games.get(message[1])[1])){
+                if (moveElements[3].equals(games.get(moveElements[1])[1])){
                     playerIcon = 'O';
-                    playerO = message[3];
-                    playerX = games.get(message[1])[0];
+                    playerO = moveElements[3];
+                    playerX = games.get(moveElements[1])[0];
                     opp = playerX;
                 } else {
-                    playerX = message[3];
-                    playerO = games.get(message[1])[1];
+                    playerX = moveElements[3];
+                    playerO = games.get(moveElements[1])[1];
                     opp = playerO;
                 }
 
                 int index = 0;
 
                 // Checks if message was sent using coordinate pair for position
-                if(message[2].contains(",")){
-                    String[] coordinates = message[2].split(",");
+                if(moveElements[2].contains(",")){
+                    String[] coordinates = moveElements[2].split(",");
 
                     int row = Integer.parseInt(coordinates[0]);
                     int column = Integer.parseInt(coordinates[1]);
@@ -238,24 +256,24 @@ public class tttserver {
                     index = (3 - row) * 3 + (column - 1);
                     
                 } else {
-                    index = Integer.parseInt(message[2]) * 2;
+                    index = Integer.parseInt(moveElements[2]) * 2;
                 }
                 // checks if space on board is available for move.
-                if(games.get(message[1])[3] != "*"){
+                if(games.get(moveElements[1])[3] != "*"){
                     response = "Error: Not a valid move";
 
                 } else {
                     // Updates the game status in the game map's value
                     StringBuilder boardBuilder = new StringBuilder(board);
                     boardBuilder.setCharAt(index, playerIcon);
-                    (games.get(message[1]))[3] = boardBuilder.toString();
+                    (games.get(moveElements[1]))[3] = boardBuilder.toString();
 
                     // Constructs response
                     if(playerIcon == 'X'){
-                        response = "BORD " + message[1] + " " + playerX + " " + 
+                        response = "BORD " + moveElements[1] + " " + playerX + " " + 
                         playerO + " " + playerO; 
                     } else {
-                        response = "BORD " + message[1] + " " + playerX + " " + 
+                        response = "BORD " + moveElements[1] + " " + playerX + " " + 
                         playerO + " " + playerX; 
                     }
                 }
@@ -288,20 +306,45 @@ public class tttserver {
             }
         }
 
+        public static void quitGame(String[] message, Socket sock, PrintWriter out) {
+            String clientID = message[2];
+            String gameID = message[3];
+            String[] elements = games.get(gameID);
+            String winner = elements[0];
+            if (elements[0].equals(clientID)) {
+                winner = elements[1];
+            }
+            String response = "TERM " +  gameID + winner + "KTHXBYE";
+
+            try {
+                out.println(response);
+                System.out.println("Sent " + response);
+                // out.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        public static void goodbye(String[] message, Socket sock, PrintWriter out) {
+            String clientID = message[2];
+            List<Integer> quit = new ArrayList<>();
+            for (int i : games.keySet()) {
+                String[] elements = games.get(i);
+                if (Arrays.stream(elements).anyMatch(clientID::equals)) {
+                    quit.add(i);
+                }
+            }
+
+            for (int j : quit) {
+                String[] mess = {"QUIT", clientID, Integer.toString(j)};
+                quitGame(mess, sock, out);
+            }
+        }
+
 
     }
-
-    // GDBY, JOIN, LIST, MOVE, QUIT, STAT
-
-    // Zach:
-        // LIST done
-        // MOVE
-        // STAT done
-
-    // Vic:
-        // GDBY
-        // QUIT
-        // JOIN
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
@@ -329,47 +372,3 @@ public class tttserver {
         }
     }
 }
-
-   // Send Acknowledgment with "SESS <version> <sess ID>""
-    // sessCount = 1;
-    // sessCount++;
-    // private static void handleClient(String[] message) {
-    //     String clientID = message[2];
-    
-    //     try {
-    //         String acknowledgment = "ACKN " + clientID;
-    
-    //         //Socket clientSocket = new Socket("localhost", PORT);
-    
-    //         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-    
-    //         out.println(acknowledgment);
-    
-    //         out.close();
-    //         clientSocket.close();
-    //     } catch (IOException e) {
-    //         e.printStackTrace();
-    //     }
-    // }
-
-// Client will connect with hello message "HELO <version number> <client ID>"
-// ex: "HELO 1 zach"
-    // Can probably take in command line arguments for the identifier/username
-
-// Server responds with receipt acknowledging the client "SESS <version number> <session ID>"
-    // We could implement some sort of counter so each time a session is created it will use that "count" value and add 1 for the next 1
-
-// Client has two options for playing
-    // Create a new game:
-        // "CREA <client ID>" to create a new game
-        // Server will respond to client with "JOND <client ID> <game ID>"
-    // Find a game:
-        // "LIST CURR" Server will send a list of all games currently open to join
-        // "LIST ALL" Server will send a list of all games running on the server
-            // Server responds with "GAMS <List of games>
-            // We could store games in like a hashmap, where the key is if it is currently open or not and the value is the game ID
-            // Client will then pick a game and send "JOIN <game ID>" and server will respond with "JOND <client ID> <game ID>"
-
-// Server needs to decide who goes first in game (can use math.rand)
-// 
-
