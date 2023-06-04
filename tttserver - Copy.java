@@ -99,17 +99,16 @@ public class tttserver {
                     } else if (message[0].equals("MOVE")){
                         System.out.println("Invoking makeMove");
                         makeMove(message, sock, out);
-                    } else if (message[1].equals("QUIT")){
+                    } else if (message[0].equals("JOIN")){
+                        System.out.println("Invoking join");
+                        join(message, sock, out);
+                    }else if (message[0].equals("QUIT")){
                         System.out.println("Invoking quitGame");
                         quitGame(message, sock, out);
-                    } else if (message[1].equals("GDBY")){
+                    } else if (message[0].equals("GDBY")){
                         System.out.println("Invoking goodbye");
                         goodbye(message, sock, out);
-                    } else if (message[1].equals("QUIT")){
-                        System.out.println("Invoking quitGame");
-                        quitGame(message, sock, out);
                     }
-                    
                     
                     // Terminate the loop if "exit" is received
                     if (savedData.equals("exit")) {
@@ -192,7 +191,7 @@ public class tttserver {
 
         public static void gameStatus(String[] message, Socket sock, PrintWriter out){
             String gameID = message[1];
-            String[] currGame = games.get(gameID);
+            String[] currGame = games.get(Integer.parseInt(gameID));
             String response = "BORD "+ gameID + message[0];
             if(currGame[1] != null){
                 response = response + (message[1] + " " + message[2] + " " + message[3]);
@@ -341,6 +340,43 @@ public class tttserver {
                 String[] mess = {"QUIT", clientID, Integer.toString(j)};
                 quitGame(mess, sock, out);
             }
+        }
+
+        public static void join(String[] message, Socket sock, PrintWriter out) {
+            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
+            int gameID = Integer.parseInt(message[2]);
+            String[] state = games.get(gameID);
+            state[1] = clientID; 
+            games.put(gameID, state);
+            String opp = state[0];
+            
+            String response = "JOND " + clientID + " " + gameID;
+
+            try {
+
+                out.println(response);
+                System.out.println("Sent " + response);
+
+                
+                try {
+                    response = "YRMV " + opp;
+                    Socket oppSocket = clientSockets.get(opp);
+                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                    out.println(response);
+                    oppOut.println(response);
+
+                    System.out.println("Sent " + response);
+    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                // out.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
         }
 
 
