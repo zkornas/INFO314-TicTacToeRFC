@@ -253,17 +253,20 @@ public class tttserver {
                     int row = Integer.parseInt(coordinates[0]);
                     int column = Integer.parseInt(coordinates[1]);
 
-                    index = ((row - 1) * 8 ) + ((2 * column) - 1) - 1;
+                    index = 2 * (((3 * row) - 2) + (column - 1)) - 1;
+
+                    System.out.println(index);
 
                     // [(row - 1) * 8 ] + [(2 * col) - 1] - 1
 
-                    // 3 * row - 2 + col - 1
+                    // 2 * (((3 * row) - 2) + (column - 1))
                     
                 } else {
-                    index = Integer.parseInt(moveElements[2]) * 2;
+                    index = Integer.parseInt(moveElements[2]) * 2 - 1;
                 }
                 // checks if space on board is available for move.
                 if((games.get(Integer.parseInt(message[1]))[2]).charAt(index) != '*') {
+                    System.out.println(games.get(Integer.parseInt(message[1]))[2]);
                     System.out.println(games.get(Integer.parseInt(message[1]))[2].charAt(index));
                     response = "Error: Not a valid move";
 
@@ -271,18 +274,19 @@ public class tttserver {
                     // Updates the game status in the game map's value
                     StringBuilder boardBuilder = new StringBuilder(board);
                     boardBuilder.setCharAt(index, playerIcon);
-                    (games.get(Integer.parseInt(message[1])))[3] = boardBuilder.toString();
+                    (games.get(Integer.parseInt(message[1])))[2] = boardBuilder.toString();
 
                     // Constructs response
                     if(playerIcon == 'X'){
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                        playerO + " " + playerO + games.get(Integer.parseInt(message[1])); 
+                        playerO + " " + playerO + " " + games.get(Integer.parseInt(message[1]))[2]; 
                     } else {
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                        playerO + " " + playerX + games.get(Integer.parseInt(message[1])); 
+                        playerO + " " + playerX + " " + games.get(Integer.parseInt(message[1]))[2]; 
                     }
                     wasSuccess = true;
-                    //checkWins()
+
+                    //checkWins(games.get(Integer.parseInt(message[1]))[2]);
                 }
             }
             try {
