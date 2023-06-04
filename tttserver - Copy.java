@@ -217,29 +217,30 @@ public class tttserver {
 
             String[] moveElements = {"MOVE", message[1], message[2], clientID};
             String response = "";
-            Boolean wasSuccess = null;
+            Boolean wasSuccess = false;
             String opp = "";
             String playerX = "";
             String playerO = "";
             char playerIcon = 'X';
 
-            if(!games.containsKey(moveElements[1])){
+            if(!games.containsKey(Integer.parseInt(message[1]))){
+                System.out.println(moveElements[1]);
                 response = "Error: Game not found.";
             // Checks if the client's ID matches the IDs of the players in the game map
-            } else if(!moveElements[3].equals((games.get(moveElements[1]))[0]) || !moveElements[3].equals((games.get(moveElements[1]))[1])){
+            } else if(!moveElements[3].equals((games.get(Integer.parseInt(message[1])))[0]) && !moveElements[3].equals((games.get(Integer.parseInt(message[1])))[1])){
                 response = "Error: You are not a player of this game.";
             } else {
-                String board = (games.get(moveElements[1]))[3];
+                String board = (games.get(Integer.parseInt(message[1])))[2];
 
                 // Checks if player is X or O based on position in map value
-                if (moveElements[3].equals(games.get(moveElements[1])[1])){
+                if (moveElements[3].equals(games.get(Integer.parseInt(message[1]))[1])){
                     playerIcon = 'O';
                     playerO = moveElements[3];
-                    playerX = games.get(moveElements[1])[0];
+                    playerX = games.get(Integer.parseInt(message[1]))[0];
                     opp = playerX;
                 } else {
                     playerX = moveElements[3];
-                    playerO = games.get(moveElements[1])[1];
+                    playerO = games.get(Integer.parseInt(message[1]))[1];
                     opp = playerO;
                 }
 
@@ -252,29 +253,36 @@ public class tttserver {
                     int row = Integer.parseInt(coordinates[0]);
                     int column = Integer.parseInt(coordinates[1]);
 
-                    index = (3 - row) * 3 + (column - 1);
+                    index = ((row - 1) * 8 ) + ((2 * column) - 1) - 1;
+
+                    // [(row - 1) * 8 ] + [(2 * col) - 1] - 1
+
+                    // 3 * row - 2 + col - 1
                     
                 } else {
                     index = Integer.parseInt(moveElements[2]) * 2;
                 }
                 // checks if space on board is available for move.
-                if(games.get(moveElements[1])[3] != "*"){
+                if((games.get(Integer.parseInt(message[1]))[2]).charAt(index) != '*') {
+                    System.out.println(games.get(Integer.parseInt(message[1]))[2].charAt(index));
                     response = "Error: Not a valid move";
 
                 } else {
                     // Updates the game status in the game map's value
                     StringBuilder boardBuilder = new StringBuilder(board);
                     boardBuilder.setCharAt(index, playerIcon);
-                    (games.get(moveElements[1]))[3] = boardBuilder.toString();
+                    (games.get(Integer.parseInt(message[1])))[3] = boardBuilder.toString();
 
                     // Constructs response
                     if(playerIcon == 'X'){
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                        playerO + " " + playerO; 
+                        playerO + " " + playerO + games.get(Integer.parseInt(message[1])); 
                     } else {
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                        playerO + " " + playerX; 
+                        playerO + " " + playerX + games.get(Integer.parseInt(message[1])); 
                     }
+                    wasSuccess = true;
+                    //checkWins()
                 }
             }
             try {
