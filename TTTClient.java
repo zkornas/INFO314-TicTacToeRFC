@@ -13,6 +13,7 @@ public class TTTClient {
 	public String protocol;
 	public String clientIdentifier;
 	public boolean inGame;
+	public boolean inSession;
 
 	public TTTClient(String hostname, int port) {
 		scanner = new Scanner(System.in);
@@ -67,18 +68,25 @@ public class TTTClient {
         switch(parts[0]) {
             case "BORD":
                 handleBord(parts);
+				break;
             case "GAMS":
                 handleGams(parts);
+				break;
             case "TERM":
                 handleTERM(parts);
+				break;
             case "JOND":
                 handleJond(parts);
+				break;
             case "SESS":
                 handleSess(parts);
+				break;
             case "YRMV":
                 handleYRMV(parts);
+				break;
             case "ERROR:":
                 handleError(parts);
+				break;
         }
     }
 
@@ -142,25 +150,28 @@ public class TTTClient {
 		String message = "HELO 1 " + identifier + "\r\n";
 		sendMessage(message);
 		System.out.println("Sent HELO message to server");
+		inSession = true;
 	}
 	
-	public void startGame() throws IOException {
+	public void startGame() throws IOException, InterruptedException {
 		Thread serverListenerThread = new Thread(() -> {
 			try {
-				if (protocol.equals("TCP")) {
-					String message;
-					while ((message = in.readLine()) != null) {
-						System.out.println("receieve message: " + message);
-						processCommandFromServer(message);
+				while(true) {
+					if (protocol.equals("TCP")) {
+						String message;
+						while ((message = in.readLine()) != null) {
+							System.out.println("receieve message: " + message);
+							processCommandFromServer(message);
+						}
+					} else {
+						byte[] buffer = new byte[1024];
+						DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
+						while (true) {
+							udpSocket.receive(dp);
+							String message = new String(dp.getData(), 0, dp.getLength(), "UTF-8");
+							processCommandFromServer(message);
+						}
 					}	
-				} else {
-					byte[] buffer = new byte[1024];
-					DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
-					while (true) {
-						udpSocket.receive(dp);
-						String message = new String(dp.getData(), 0, dp.getLength(), "UTF-8");
-						processCommandFromServer(message);
-					}
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -169,7 +180,7 @@ public class TTTClient {
 		serverListenerThread.start();
 		
 		sendHELO();
-		while (true) {
+		while (inSession) {
 			while (!inGame) {
 				System.out.println("Available Commands:");
 				System.out.println();
@@ -183,15 +194,13 @@ public class TTTClient {
 				String[] commandParts = command.split(" ");
 				if (commandParts[0].equals("CREA")) {
 					command += " " + clientIdentifier;
+					inGame = true;
 				}
 				sendMessage(command + "\r\n");
 				if (commandParts[0].equals("GDBY")) {
-					if (protocol.equals("TCP")) {
-						tcpSocket.close();
-					} else {
-						udpSocket.close();
-					}
+					inSession = false;
 				}
+				Thread.sleep(3000);
 			}
 			while (inGame) {
 				System.out.println("Available Commands:");
@@ -202,15 +211,14 @@ public class TTTClient {
 				String[] commandParts = command.split(" ");
 				sendMessage(command + "\r\n");
 				if (commandParts[0].equals("GDBY")) {
-					if (protocol.equals("TCP")) {
-						tcpSocket.close();
-					} else {
-						udpSocket.close();
-					}
-					inGame = !inGame;
+					inGame = false;
+					inSession = false;
 				}
 			}
+			Thread.sleep(3000);
 		}
+		if (protocol.equals("TCP")) tcpSocket.close();
+		else udpSocket.close();
 	}
     
     public static void main(String[] args) {
