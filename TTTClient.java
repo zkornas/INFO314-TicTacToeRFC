@@ -28,9 +28,11 @@ public class TTTClient {
             in = new BufferedReader(new InputStreamReader(tcpSocket.getInputStream()));
             out = new PrintWriter(tcpSocket.getOutputStream(), true);
 			protocol = "TCP";
+			System.out.println("Established TCP connection to " + hostname + " on port " + port);
         } else if (type.equalsIgnoreCase("UDP")) {
             udpSocket = new DatagramSocket();
 			protocol = "UDP";
+			System.out.println("UDP Socket created");
             // in = new BufferedReader(new InputStreamReader(udpSocket.getInputStream()));
             // out = new PrintWriter(udpSocket.getOutputStream(), true);
         } else {
@@ -87,11 +89,12 @@ public class TTTClient {
 		while (true) {
 			while (!inGame) {
 				System.out.println("Available Commands:");
-				System.out.println("  JOIN <game-id>");
-				System.out.println("  CREA");
-				System.out.println("  LIST <CURR/ALL>");
-				System.out.println("  STAT <game-id>");
-				System.out.println("  GDBY");
+				System.out.println();
+				System.out.println("  CREA				(create a game)");
+				System.out.println("  JOIN <game-id>		(join a game)");
+				System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
+				System.out.println("  STAT <game-id>		(display status of a game)");
+				System.out.println("  GDBY				(end session)");
 		
 				String command = scanner.nextLine();
 				String[] commandParts = command.split(" ");
