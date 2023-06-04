@@ -306,8 +306,14 @@ public class tttserver {
         }
 
         public static void quitGame(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[2];
-            String gameID = message[3];
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
+            int gameID = Integer.parseInt(message[1]);
             String[] elements = games.get(gameID);
             String winner = elements[0];
             if (elements[0].equals(clientID)) {
@@ -327,7 +333,13 @@ public class tttserver {
         }
 
         public static void goodbye(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[2];
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
             List<Integer> quit = new ArrayList<>();
             for (int i : games.keySet()) {
                 String[] elements = games.get(i);
@@ -343,8 +355,14 @@ public class tttserver {
         }
 
         public static void join(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
-            int gameID = Integer.parseInt(message[2]);
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
+            int gameID = Integer.parseInt(message[1]);
             String[] state = games.get(gameID);
             state[1] = clientID; 
             games.put(gameID, state);
@@ -378,7 +396,6 @@ public class tttserver {
             }
 
         }
-
 
     }
 
