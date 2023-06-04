@@ -62,17 +62,75 @@ public class TTTClient {
         return in.readLine();
     }
     
-    // Method to process commands
-    public void processCommand(String command) {
-        // Split the command into parts
+    public void processCommandFromServer(String receive) {
         String[] parts = command.split(" ");
-
         switch(parts[0]) {
             case "BORD":
-                // Handle BORD command
-                break;
-            // Continue with other commands...
+                handleBord(parts);
+            case "GAMS":
+                handleGams(parts);
+            case "TERM":
+                handleTerm(parts);
+            case "JOND":
+                handleJond(parts);
+            case "SESS":
+                handleSess(parts);
+            case "YRMV":
+                handleYRMV(parts);
+            case "ERROR:":
+                handleError(parts);
         }
+    }
+
+    public void handleBord(String[] parts) {
+        if (parts.length == 7) {
+            System.out.println("Games ends, " + parts[parts.length - 1] + " wins!");
+            System.out.println(parts[parts.length - 2]);
+        } else if (parts.length == 6){
+            System.out.println("In game, waiting for " + parts[parts.length - 2] + " to make the next move");
+            System.out.println(parts[parts.length - 1]);
+        } else if (parts.length == 3) {
+            System.out.println("The game " + parts[1] + "haven't been started since there's only one player with id " + parts[2]);
+        }
+    }
+
+    public void handleGams (String[] parts) {
+        // this.gamesLookingForPeople = parts (could be a arraylist, just update every time)
+        // spl
+        StringBuilder sb = new StringBuilder();
+        for (String game : parts) {
+            if (game.equals("GAMS")) {
+                continue;
+            } 
+            sb.append(game + " ");
+        }
+        System.out.println("Games you can join: " + sb.toString());
+    }
+
+    public void handleTERM(String[] parts) {
+        if (parts.length() == 3) {
+            System.out.println("The winner of the game is " + parts[parts.size() - 2]);
+        } else {
+            System.out.println("No winner, stalemate ");
+        }
+    }
+
+    public void handleJond (String[] parts) {
+        // spl("joined successfully ")
+        System.out.println(parts[1] + " has successfully joined the game with id " + parts[2]);
+    }
+
+    public void handleSess (String[] parts) {
+        // spl("session + num + created");
+        System.out.println("You have created an unique session with id " + parts[2] + " over protocal " + parts[1]);
+    }
+
+    public void handleYRMV(String[] parts) {
+        System.out.println("Client " + parts[parts.length-1] + " has successfully made a move to game " + parts[parts.length - 2]);
+    }
+
+    public void handleError(String[] parts) {
+        System.out.println(parts[1]);
     }
 
 	public void sendHELO() {
