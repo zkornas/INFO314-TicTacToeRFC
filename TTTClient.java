@@ -44,8 +44,8 @@ public class TTTClient {
     public void sendMessage(String message) {
 		try {
 			if (protocol.equals("TCP")) {
+				System.out.println("sending message: " + message);
 				out.println(message);
-
 			} else {
 				byte[] messageBytes = message.getBytes();
 				InetAddress server = InetAddress.getByName(hostname);
@@ -63,14 +63,14 @@ public class TTTClient {
     }
     
     public void processCommandFromServer(String receive) {
-        String[] parts = command.split(" ");
+        String[] parts = receive.split(" ");
         switch(parts[0]) {
             case "BORD":
                 handleBord(parts);
             case "GAMS":
                 handleGams(parts);
             case "TERM":
-                handleTerm(parts);
+                handleTERM(parts);
             case "JOND":
                 handleJond(parts);
             case "SESS":
@@ -108,16 +108,18 @@ public class TTTClient {
     }
 
     public void handleTERM(String[] parts) {
-        if (parts.length() == 3) {
-            System.out.println("The winner of the game is " + parts[parts.size() - 2]);
+        if (parts.length == 3) {
+            System.out.println("The winner of the game is " + parts[parts.length - 2]);
         } else {
             System.out.println("No winner, stalemate ");
         }
+		inGame = false;
     }
 
     public void handleJond (String[] parts) {
         // spl("joined successfully ")
         System.out.println(parts[1] + " has successfully joined the game with id " + parts[2]);
+		inGame = true;
     }
 
     public void handleSess (String[] parts) {
@@ -141,8 +143,31 @@ public class TTTClient {
 		sendMessage(message);
 		System.out.println("Sent HELO message to server");
 	}
-
+	
 	public void startGame() throws IOException {
+		Thread serverListenerThread = new Thread(() -> {
+			try {
+				if (protocol.equals("TCP")) {
+					String message;
+					while ((message = in.readLine()) != null) {
+						System.out.println("receieve message: " + message);
+						processCommandFromServer(message);
+					}	
+				} else {
+					byte[] buffer = new byte[1024];
+					DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
+					while (true) {
+						udpSocket.receive(dp);
+						String message = new String(dp.getData(), 0, dp.getLength(), "UTF-8");
+						processCommandFromServer(message);
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+		serverListenerThread.start();
+		
 		sendHELO();
 		while (true) {
 			while (!inGame) {
@@ -160,15 +185,30 @@ public class TTTClient {
 					command += " " + clientIdentifier;
 				}
 				sendMessage(command + "\r\n");
-				String serverMessage = receiveMessage();
-				processCommand(serverMessage);
+				if (commandParts[0].equals("GDBY")) {
+					if (protocol.equals("TCP")) {
+						tcpSocket.close();
+					} else {
+						udpSocket.close();
+					}
+				}
 			}
-			if (inGame) {
+			while (inGame) {
 				System.out.println("Available Commands:");
 				System.out.println("  MOVE");
 				System.out.println("  QUIT");
 				System.out.println("  GDBY");
 				String command = scanner.nextLine();
+				String[] commandParts = command.split(" ");
+				sendMessage(command + "\r\n");
+				if (commandParts[0].equals("GDBY")) {
+					if (protocol.equals("TCP")) {
+						tcpSocket.close();
+					} else {
+						udpSocket.close();
+					}
+					inGame = !inGame;
+				}
 			}
 		}
 	}
@@ -193,10 +233,8 @@ public class TTTClient {
             TTTClient client = new TTTClient(hostname, port);
             // Connect to the server
             client.establishConnection(protocol);
-		
             // Start the interactive loop
 			client.startGame(); 
-
         } catch (Exception e) {
             e.printStackTrace();
         }
