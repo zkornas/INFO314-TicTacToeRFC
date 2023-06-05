@@ -286,10 +286,13 @@ public class tttserver {
                     }
                     wasSuccess = true;
 
-                    //checkWins(games.get(Integer.parseInt(message[1]))[2]);
+                    //checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon);
                 }
             }
             try {
+                if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
+                    response+= " " + moveElements[3];
+                }
                 out.println(response);
                 System.out.println("Sent " + response);
 
@@ -297,7 +300,8 @@ public class tttserver {
                 e.printStackTrace();
             }
 
-            if(wasSuccess){
+            System.out.println(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon));
+            if(wasSuccess && !checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
                 if(playerIcon == 'X'){
                     response = "YRMV " + " " + playerO;
                 } else {
@@ -315,6 +319,67 @@ public class tttserver {
                     e.printStackTrace();
                 } 
             }
+        }
+
+        public static boolean checkWins(String board, char playerIcon){
+            board = board.replace("|", "");
+
+            String[] firstRow = board.substring(0,3).split("");
+            String[] secondRow = board.substring(3,6).split("");
+            String[] thirdRow = board.substring(6).split("");
+
+            String[] firstColumn = new String[]{
+                Character.toString(board.charAt(0)), 
+                Character.toString(board.charAt(3)), 
+                Character.toString(board.charAt(6))
+            };
+            String[] secondColumn = new String[]{
+                Character.toString(board.charAt(1)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(7))
+            };
+            String[] thirdColumn = new String[]{
+                Character.toString(board.charAt(2)), 
+                Character.toString(board.charAt(5)), 
+                Character.toString(board.charAt(8))
+            };
+
+            String[] diagonal = new String[]{
+                Character.toString(board.charAt(0)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(8))
+            };
+            String[] antiDiagonal = new String[]{
+                Character.toString(board.charAt(2)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(6))
+            };
+
+            boolean isEqual = false;
+
+            String[][] boardArray = {
+                firstRow,
+                secondRow,
+                thirdRow,
+                firstColumn,
+                secondColumn,
+                thirdColumn,
+                diagonal,
+                antiDiagonal
+            };
+
+            String[] xWin = new String[]{"X", "X", "X"};
+            String[] oWin = new String[]{"O", "O", "O"};
+
+            for(int i = 0; i < 8; i++){
+                // System.out.println("Curr Board: " + Arrays.toString(boardArray[i]));
+                if(Arrays.equals(boardArray[i], xWin)){
+                    return true;
+                } else if(Arrays.equals(boardArray[i], oWin)){
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static void quitGame(String[] message, Socket sock, PrintWriter out) {
