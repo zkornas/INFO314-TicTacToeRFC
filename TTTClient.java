@@ -11,9 +11,11 @@ public class TTTClient {
 	public String hostname;
 	public int port;
 	public String protocol;
-	public String clientIdentifier;
+	public String clientId;
 	public boolean inGame;
+	public boolean myTurn;
 	public boolean inSession;
+	public String currentGameId;
 
 	public TTTClient(String hostname, int port) {
 		scanner = new Scanner(System.in);
@@ -48,6 +50,7 @@ public class TTTClient {
 				System.out.println("sending message: " + message);
 				out.println(message);
 			} else {
+				System.out.println("sending message: " + message);
 				byte[] messageBytes = message.getBytes();
 				InetAddress server = InetAddress.getByName(hostname);
 				DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, server, port);
@@ -87,16 +90,34 @@ public class TTTClient {
             case "ERROR:":
                 handleError(parts);
 				break;
+			default: 
+				System.out.println("Unrecognized server message: " + receive);
         }
     }
 
     public void handleBord(String[] parts) {
         if (parts.length == 7) {
             System.out.println("Games ends, " + parts[parts.length - 1] + " wins!");
-            System.out.println(parts[parts.length - 2]);
+			String[] board = parts[parts.length - 2].split("\\|");
+            System.out.println("_____________");
+			System.out.println("| " + board[1] + " | " + board[2] + " | " + board[3] + " |");
+			System.out.println("–––––––––––––");
+			System.out.println("| " + board[4] + " | " + board[5] + " | " + board[6] + " |");
+			System.out.println("–––––––––––––");
+			System.out.println("| " + board[7] + " | " + board[8] + " | " + board[9] + " |");
+			System.out.println("‾‾‾‾‾‾‾‾‾‾‾‾‾");
+			inGame = false;
+			currentGameId = "";
         } else if (parts.length == 6){
-            System.out.println("In game, waiting for " + parts[parts.length - 2] + " to make the next move");
-            System.out.println(parts[parts.length - 1]);
+            System.out.println("In game, waiting for " + parts[parts.length - 2] + " to make the next move");			
+			String[] board = parts[parts.length - 1].split("\\|");
+            System.out.println("_____________");
+			System.out.println("| " + board[1] + " | " + board[2] + " | " + board[3] + " |");
+			System.out.println("–––––––––––––");
+			System.out.println("| " + board[4] + " | " + board[5] + " | " + board[6] + " |");
+			System.out.println("–––––––––––––");
+			System.out.println("| " + board[7] + " | " + board[8] + " | " + board[9] + " |");
+			System.out.println("‾‾‾‾‾‾‾‾‾‾‾‾‾");
         } else if (parts.length == 3) {
             System.out.println("The game " + parts[1] + "haven't been started since there's only one player with id " + parts[2]);
         }
@@ -116,17 +137,20 @@ public class TTTClient {
     }
 
     public void handleTERM(String[] parts) {
-        if (parts.length == 3) {
-            System.out.println("The winner of the game is " + parts[parts.length - 2]);
+        if (parts.length == 4) {
+            System.out.println("The winner of the game is " + parts[2]);
         } else {
             System.out.println("No winner, stalemate ");
         }
 		inGame = false;
+		currentGameId = "";
+		
     }
 
     public void handleJond (String[] parts) {
         // spl("joined successfully ")
         System.out.println(parts[1] + " has successfully joined the game with id " + parts[2]);
+		currentGameId = parts[2];
 		inGame = true;
     }
 
@@ -136,7 +160,14 @@ public class TTTClient {
     }
 
     public void handleYRMV(String[] parts) {
-        System.out.println("Client " + parts[parts.length-1] + " has successfully made a move to game " + parts[parts.length - 2]);
+        // System.out.println("Client " + parts[parts.length-1] + " has successfully made a move to game " + parts[parts.length - 2]);
+		if (parts[2].equals(clientId)) {
+			System.out.println("It is now your turn to make a move.");
+			myTurn = true;
+		} else {
+			System.out.println("it is now " + parts[2] + "'s turn to move.");
+			myTurn = false;
+		}
     }
 
     public void handleError(String[] parts) {
@@ -146,10 +177,11 @@ public class TTTClient {
 	public void sendHELO() {
 		System.out.println("What would you like your client identifier to be? ");
 		String identifier = scanner.nextLine();
-		clientIdentifier = identifier;
+		clientId = identifier;
 		String message = "HELO 1 " + identifier + "\r\n";
 		sendMessage(message);
 		System.out.println("Sent HELO message to server");
+		System.out.println();
 		inSession = true;
 	}
 	
@@ -160,7 +192,7 @@ public class TTTClient {
 					if (protocol.equals("TCP")) {
 						String message;
 						while ((message = in.readLine()) != null) {
-							System.out.println("receieve message: " + message);
+							System.out.println("received message: " + message);
 							processCommandFromServer(message);
 						}
 					} else {
@@ -169,6 +201,7 @@ public class TTTClient {
 						while (true) {
 							udpSocket.receive(dp);
 							String message = new String(dp.getData(), 0, dp.getLength(), "UTF-8");
+							System.out.println("received message: " + message);
 							processCommandFromServer(message);
 						}
 					}	
@@ -183,39 +216,54 @@ public class TTTClient {
 		while (inSession) {
 			while (!inGame) {
 				System.out.println("Available Commands:");
-				System.out.println();
 				System.out.println("  CREA				(create a game)");
 				System.out.println("  JOIN <game-id>		(join a game)");
 				System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
 				System.out.println("  STAT <game-id>		(display status of a game)");
 				System.out.println("  GDBY				(end session)");
-		
+
 				String command = scanner.nextLine();
 				String[] commandParts = command.split(" ");
 				if (commandParts[0].equals("CREA")) {
-					command += " " + clientIdentifier;
+					command += " " + clientId;
 					inGame = true;
 				}
 				sendMessage(command + "\r\n");
 				if (commandParts[0].equals("GDBY")) {
 					inSession = false;
 				}
-				Thread.sleep(3000);
+				Thread.sleep(2000);
 			}
 			while (inGame) {
-				System.out.println("Available Commands:");
-				System.out.println("  MOVE");
-				System.out.println("  QUIT");
-				System.out.println("  GDBY");
+				if (myTurn) {
+					System.out.println("Available Commands:");
+					System.out.println("  MOVE <move>         (place a token on square <move>)");
+					System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
+					System.out.println("  STAT <game-id>		(display status of a game)");
+					System.out.println("  QUIT");
+					System.out.println("  GDBY");
+				} else {
+					System.out.println("Available Commands:");
+					System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
+					System.out.println("  STAT <game-id>		(display status of a game)");
+					System.out.println("  QUIT");
+					System.out.println("  GDBY");
+				}
 				String command = scanner.nextLine();
 				String[] commandParts = command.split(" ");
+				if (commandParts[0].equals("MOVE")) {
+					command = commandParts[0] + " " + currentGameId + " " + commandParts[1];
+				} else if (commandParts[0].equals("QUIT")) {
+					command = command + " " + currentGameId;
+				}
 				sendMessage(command + "\r\n");
 				if (commandParts[0].equals("GDBY")) {
 					inGame = false;
 					inSession = false;
 				}
+				Thread.sleep(2000);
 			}
-			Thread.sleep(3000);
+
 		}
 		if (protocol.equals("TCP")) tcpSocket.close();
 		else udpSocket.close();
