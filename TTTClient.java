@@ -161,11 +161,11 @@ public class TTTClient {
 
     public void handleYRMV(String[] parts) {
         // System.out.println("Client " + parts[parts.length-1] + " has successfully made a move to game " + parts[parts.length - 2]);
-		if (parts[2].equals(clientId)) {
+		if (parts[1].equals(clientId)) {
 			System.out.println("It is now your turn to make a move.");
 			myTurn = true;
 		} else {
-			System.out.println("it is now " + parts[2] + "'s turn to move.");
+			System.out.println("it is now " + parts[1] + "'s turn to move.");
 			myTurn = false;
 		}
     }

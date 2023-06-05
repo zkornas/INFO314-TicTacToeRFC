@@ -6,12 +6,12 @@ public class tttserver {
 
     public static int PORT = 3116;
     public static Boolean LISTEN = true;
-    public static HashMap <Integer, String> sessionsAndClients = new HashMap<Integer, String>();
+    public static HashMap <Integer, String> sessionsAndClients = new HashMap<>();
     public static HashMap <String, Socket> clientSockets = new HashMap<>();
-    public static int sessionID = 0;
+    public static int sessionID = 1;
     public static final int version = 1;
     public static HashMap <Integer, String[]> games = new HashMap<>();
-    public static int gameID = 0;
+    public static int gameID = 1;
 
 // Open TCP Socket and wait for connection
 // Open UDP socket and wait for connection
@@ -53,7 +53,6 @@ public class tttserver {
             try {
 
                 System.out.println("Listening for TCP connection on port " + 3116);
-                //Socket sock = soc.accept();
                 System.out.println("Connection Successful!");
 
                 while (true) {
@@ -63,12 +62,6 @@ public class tttserver {
                     StringBuilder inputData = new StringBuilder();
 
                     String line;
-
-                    // There is a problem here, while the connection stays open
-                    // with the client, this loops forever as the input is never
-                    // null, until it times out.
-
-                    // While loop should work correct
 
                     while (in.ready()) {
                         inputData.append((char) in.read());
@@ -88,20 +81,33 @@ public class tttserver {
                     String[] message = savedData.split(" ");
 
                     if (message[0].equals("HELO")) {
+                        if (Integer.parseInt(message[1]) != 1){
+                            System.out.println(message[1]);
+                            out.println("Error: Invalid version");
+                        }
                         System.out.println("Invoking handleClient");
                         startSession(message, sock, out);
-                        // out.close();
-                    } else if (!message[1].equals(version)) {
-                        out.println("Error: Invalid version.");
-                        // out.close();
-                    } else if (message[1].equals("CREA")){
+                    } else if (message[0].equals("CREA")){
+                        System.out.println("Invoking createGame");
                         createGame(message, sock, out);
-                    } else if (message[1].equals("LIST")){
+                    } else if (message[0].equals("LIST")){
+                        System.out.println("Invokign listGames");
                         listGames(message, sock, out);
-                    }
-                    /////////////////////
-                    else if (message[1].equals("QUIT")){
+                    } else if (message[0].equals("STAT")){
+                        System.out.println("Invoking gameStatus");
+                        gameStatus(message, sock, out);
+                    } else if (message[0].equals("MOVE")){
+                        System.out.println("Invoking makeMove");
+                        makeMove(message, sock, out);
+                    } else if (message[0].equals("JOIN")){
+                        System.out.println("Invoking join");
+                        join(message, sock, out);
+                    }else if (message[0].equals("QUIT")){
+                        System.out.println("Invoking quitGame");
                         quitGame(message, sock, out);
+                    } else if (message[0].equals("GDBY")){
+                        System.out.println("Invoking goodbye");
+                        goodbye(message, sock, out);
                     }
                     
                     // Terminate the loop if "exit" is received
@@ -121,14 +127,16 @@ public class tttserver {
         // Handles response to client
         public static void startSession(String[] message, Socket sock, PrintWriter out) {
             String clientID = message[2];
-            String acknowledgment = "SESS " + version + sessionID;
+            String acknowledgment = "SESS " + version + " " + sessionID;
+            String value = 
             sessionsAndClients.put(sessionID, clientID);
             sessionID++;
+
+            clientSockets.put(clientID, sock);
 
             try {
                 out.println(acknowledgment);
                 System.out.println("Sent " + acknowledgment);
-                // out.close();
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -137,37 +145,274 @@ public class tttserver {
         }
 
         public static void createGame(String[] message, Socket sock, PrintWriter out){
-            String clientID = message[2];
+            String clientID = message[1];
             String[] gameElements = {clientID, null, "|*|*|*|*|*|*|*|*|*|"};
             games.put(gameID, gameElements);
+            String response = "JOND " + clientID + " " + gameID;
             gameID++;
-            String response = "JOND " + clientID + gameID;
 
             try {
                 out.println(response);
                 System.out.println("Sent " + response);
-                // out.close();
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
         }
-        
-        /////////////////////
 
-        public static void quitGame(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
-            String gameID = message[2];
-            String[] elements = games.get(gameID);
-            String winner = elements[0];
-            if (elements[0].equals(clientID)) {
-                winner = elements[1];
+        public static void listGames(String[] message, Socket sock, PrintWriter out){
+            String gameList = "";
+            if (message[1].equals("ALL")){
+                Set<Integer> keys = games.keySet();
+                for(Integer key: keys){
+                    gameList = gameList + (key + " ");
+                }
+            } else if (message[1].equals("CURR")){
+                for (Map.Entry<Integer, String[]> entry : games.entrySet()){
+                    String[] gameState = entry.getValue();
+                    if (gameState[1] == null){
+                        gameList = gameList + (entry.getKey() + " ");
+                    }
+                }
+            } else {
+                gameList = "Error: Please choose CURR or ALL";
             }
-            String response = "TERM " +  gameID + winner + "KTHXBYE";
+
+            try {
+                out.println(gameList);
+                System.out.println("Sent " + gameList);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        public static void gameStatus(String[] message, Socket sock, PrintWriter out){
+            String gameID = message[1];
+            String[] currGame = games.get(Integer.parseInt(gameID));
+            String response = "BORD "+ gameID + message[0];
+            if(currGame[1] != null){
+                response = response + (message[1] + " " + message[2] + " " + message[3]);
+            }
 
             try {
                 out.println(response);
+                System.out.println("Sent " + response);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        public static void makeMove(String[] message, Socket sock, PrintWriter out){
+            // Assuming structure: MOVE <game ID> <position> <client ID>
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
+            String[] moveElements = {"MOVE", message[1], message[2], clientID};
+            String response = "";
+            Boolean wasSuccess = false;
+            String opp = "";
+            String playerX = "";
+            String playerO = "";
+            char playerIcon = 'X';
+
+            if(!games.containsKey(Integer.parseInt(message[1]))){
+                System.out.println(moveElements[1]);
+                response = "Error: Game not found.";
+            // Checks if the client's ID matches the IDs of the players in the game map
+            } else if(!moveElements[3].equals((games.get(Integer.parseInt(message[1])))[0]) && !moveElements[3].equals((games.get(Integer.parseInt(message[1])))[1])){
+                response = "Error: You are not a player of this game.";
+            } else {
+                String board = (games.get(Integer.parseInt(message[1])))[2];
+
+                // Checks if player is X or O based on position in map value
+                if (moveElements[3].equals(games.get(Integer.parseInt(message[1]))[1])){
+                    playerIcon = 'O';
+                    playerO = moveElements[3];
+                    playerX = games.get(Integer.parseInt(message[1]))[0];
+                    opp = playerX;
+                } else {
+                    playerX = moveElements[3];
+                    playerO = games.get(Integer.parseInt(message[1]))[1];
+                    opp = playerO;
+                }
+
+                int index = 0;
+
+                // Checks if message was sent using coordinate pair for position
+                if(moveElements[2].contains(",")){
+                    String[] coordinates = moveElements[2].split(",");
+
+                    int row = Integer.parseInt(coordinates[0]);
+                    int column = Integer.parseInt(coordinates[1]);
+
+                    index = 2 * (((3 * row) - 2) + (column - 1)) - 1;
+
+                    System.out.println(index);
+
+                    // [(row - 1) * 8 ] + [(2 * col) - 1] - 1
+
+                    // 2 * (((3 * row) - 2) + (column - 1))
+                    
+                } else {
+                    index = Integer.parseInt(moveElements[2]) * 2 - 1;
+                }
+                // checks if space on board is available for move.
+                if((games.get(Integer.parseInt(message[1]))[2]).charAt(index) != '*') {
+                    System.out.println(games.get(Integer.parseInt(message[1]))[2]);
+                    System.out.println(games.get(Integer.parseInt(message[1]))[2].charAt(index));
+                    response = "Error: Not a valid move";
+
+                } else {
+                    // Updates the game status in the game map's value
+                    StringBuilder boardBuilder = new StringBuilder(board);
+                    boardBuilder.setCharAt(index, playerIcon);
+                    (games.get(Integer.parseInt(message[1])))[2] = boardBuilder.toString();
+
+                    // Constructs response
+                    if(playerIcon == 'X'){
+                        response = "BORD " + moveElements[1] + " " + playerX + " " + 
+                        playerO + " " + playerO + " " + games.get(Integer.parseInt(message[1]))[2]; 
+                    } else {
+                        response = "BORD " + moveElements[1] + " " + playerX + " " + 
+                        playerO + " " + playerX + " " + games.get(Integer.parseInt(message[1]))[2]; 
+                    }
+                    wasSuccess = true;
+
+                    //checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon);
+                }
+            }
+            String end = "";
+            try {
+                if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
+                    response += " " + moveElements[3];
+                    end = "TERM " +  gameID + " " + moveElements[3] + " KTHXBYE";
+                }
+                out.println(response);
+                System.out.println("Sent " + response);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon));
+            if(wasSuccess && !checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
+                if(playerIcon == 'X'){
+                    response = "YRMV " + " " + playerO;
+                } else {
+                    response = "YRMV " + " " + playerX;
+                }
+                try {
+                    Socket oppSocket = clientSockets.get(opp);
+                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                    out.println(response);
+                    oppOut.println(response);
+
+                    if (!end.isEmpty()) {
+                        out.println(end);
+                        oppOut.println(end);
+                        System.out.println("Sent: " + end);
+                    }
+
+                    System.out.println("Sent " + response);
+    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } 
+            }
+        }
+
+        public static boolean checkWins(String board, char playerIcon){
+            board = board.replace("|", "");
+
+            String[] firstRow = board.substring(0,3).split("");
+            String[] secondRow = board.substring(3,6).split("");
+            String[] thirdRow = board.substring(6).split("");
+
+            String[] firstColumn = new String[]{
+                Character.toString(board.charAt(0)), 
+                Character.toString(board.charAt(3)), 
+                Character.toString(board.charAt(6))
+            };
+            String[] secondColumn = new String[]{
+                Character.toString(board.charAt(1)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(7))
+            };
+            String[] thirdColumn = new String[]{
+                Character.toString(board.charAt(2)), 
+                Character.toString(board.charAt(5)), 
+                Character.toString(board.charAt(8))
+            };
+
+            String[] diagonal = new String[]{
+                Character.toString(board.charAt(0)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(8))
+            };
+            String[] antiDiagonal = new String[]{
+                Character.toString(board.charAt(2)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(6))
+            };
+
+            boolean isEqual = false;
+
+            String[][] boardArray = {
+                firstRow,
+                secondRow,
+                thirdRow,
+                firstColumn,
+                secondColumn,
+                thirdColumn,
+                diagonal,
+                antiDiagonal
+            };
+
+            String[] xWin = new String[]{"X", "X", "X"};
+            String[] oWin = new String[]{"O", "O", "O"};
+
+            for(int i = 0; i < 8; i++){
+                // System.out.println("Curr Board: " + Arrays.toString(boardArray[i]));
+                if(Arrays.equals(boardArray[i], xWin)){
+                    return true;
+                } else if(Arrays.equals(boardArray[i], oWin)){
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static void quitGame(String[] message, Socket sock, PrintWriter out) {
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
+            int gameID = Integer.parseInt(message[1]);
+            String[] elements = games.get(gameID);
+            String winner = elements[0];
+            String opp = elements[1];
+            if (elements[0].equals(clientID)) {
+                winner = elements[1];
+                opp = elements[0];
+            }
+            String response = "TERM " +  gameID + " " + winner + " KTHXBYE";
+
+            try {
+                Socket oppSocket = clientSockets.get(opp);
+                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                out.println(response);
+                oppOut.print(response);
                 System.out.println("Sent " + response);
                 // out.close();
 
@@ -178,7 +423,13 @@ public class tttserver {
         }
 
         public static void goodbye(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
             List<Integer> quit = new ArrayList<>();
             for (int i : games.keySet()) {
                 String[] elements = games.get(i);
@@ -194,18 +445,39 @@ public class tttserver {
         }
 
         public static void join(String[] message, Socket sock, PrintWriter out) {
-            String clientID = message[1]; // FIX!! CLIENT WONT SEND ID IN MESSAGE
-            String gameID = message[2];
+            String clientID = "";
+            for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+                if (Objects.equals(entry.getValue(), sock)){
+                    clientID = entry.getKey();
+                }
+            }
+
+            int gameID = Integer.parseInt(message[1]);
             String[] state = games.get(gameID);
-            state[2] = clientID; 
+            state[1] = clientID; 
+            games.put(gameID, state);
+            String opp = state[0];
             
-            String response = "JOND " + clientID + gameID;
+            String response = "JOND " + clientID + " " + gameID;
 
             try {
+
                 out.println(response);
                 System.out.println("Sent " + response);
 
-                // SEND YRMV HERE TO CLIENT 1
+                
+                try {
+                    response = "YRMV " + opp;
+                    Socket oppSocket = clientSockets.get(opp);
+                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                    out.println(response);
+                    oppOut.println(response);
+
+                    System.out.println("Sent " + response);
+    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
                 // out.close();
 
@@ -215,17 +487,7 @@ public class tttserver {
 
         }
 
-    // GDBY, JOIN, LIST, MOVE, QUIT, STAT
-
-    // Zach:
-        // LIST
-        // MOVE
-        // STAT
-
-    // Vic:
-        // GDBY
-        // QUIT
-        // JOIN
+    }
 
     public static class MyRunnableUDP implements Runnable {
         private DatagramSocket soc;
@@ -252,49 +514,4 @@ public class tttserver {
 
         }
     }
-    }
 }
-
-   // Send Acknowledgment with "SESS <version> <sess ID>""
-    // sessCount = 1;
-    // sessCount++;
-    // private static void handleClient(String[] message) {
-    //     String clientID = message[2];
-    
-    //     try {
-    //         String acknowledgment = "ACKN " + clientID;
-    
-    //         //Socket clientSocket = new Socket("localhost", PORT);
-    
-    //         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-    
-    //         out.println(acknowledgment);
-    
-    //         out.close();
-    //         clientSocket.close();
-    //     } catch (IOException e) {
-    //         e.printStackTrace();
-    //     }
-    // }
-
-// Client will connect with hello message "HELO <version number> <client ID>"
-// ex: "HELO 1 zach"
-    // Can probably take in command line arguments for the identifier/username
-
-// Server responds with receipt acknowledging the client "SESS <version number> <session ID>"
-    // We could implement some sort of counter so each time a session is created it will use that "count" value and add 1 for the next 1
-
-// Client has two options for playing
-    // Create a new game:
-        // "CREA <client ID>" to create a new game
-        // Server will respond to client with "JOND <client ID> <game ID>"
-    // Find a game:
-        // "LIST CURR" Server will send a list of all games currently open to join
-        // "LIST ALL" Server will send a list of all games running on the server
-            // Server responds with "GAMS <List of games>
-            // We could store games in like a hashmap, where the key is if it is currently open or not and the value is the game ID
-            // Client will then pick a game and send "JOIN <game ID>" and server will respond with "JOND <client ID> <game ID>"
-
-// Server needs to decide who goes first in game (can use math.rand)
-// 
-
