@@ -102,7 +102,10 @@ public class tttserver {
                     } else if (message[0].equals("JOIN")){
                         System.out.println("Invoking join");
                         join(message, sock, out);
-                    }else if (message[0].equals("QUIT")){
+                    } else if (message[0].equals("STAT")){
+                        System.out.println("Invoking gameStat");
+                        gameStat(message, sock, out);
+                    } else if (message[0].equals("QUIT")){
                         System.out.println("Invoking quitGame");
                         quitGame(message, sock, out);
                     } else if (message[0].equals("GDBY")){
@@ -122,7 +125,27 @@ public class tttserver {
                 e.printStackTrace();
             }
         }
+        
 
+        public static void gameStat(String[] message, Socket sock, PrintWriter out){
+            String gameID = message[1];
+            String response = "";
+
+            if(games.get(Integer.parseInt(message[1]))[1] == null){
+                response = "BORD " + gameID + " " + games.get(Integer.parseInt(message[1]))[0] + " ";
+            } else {
+                response = "BORD " + gameID + " " + games.get(Integer.parseInt(message[1]))[0] + " " + 
+                games.get(Integer.parseInt(message[1]))[1] + " " + games.get(Integer.parseInt(message[1]))[2];
+            }
+
+            try {
+                out.println(response);
+                System.out.println("Sent " + response);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 
         // Handles response to client
         public static void startSession(String[] message, Socket sock, PrintWriter out) {
@@ -163,15 +186,15 @@ public class tttserver {
 
         public static void listGames(String[] message, Socket sock, PrintWriter out){
             String gameList = "GAMS ";
-            if (message[1].equals("ALL")){
+            if (message[1].equals("CURR")){
                 Set<Integer> keys = games.keySet();
                 for(Integer key: keys){
                     gameList = gameList + (key + " ");
                 }
-            } else if (message[1].equals("CURR")){
+            } else if (message[1].equals("ALL")){
                 for (Map.Entry<Integer, String[]> entry : games.entrySet()){
                     String[] gameState = entry.getValue();
-                    if (gameState[1] == null){
+                    if (gameState[2].contains("*")){
                         gameList = gameList + (entry.getKey() + " ");
                     }
                 }
@@ -256,10 +279,6 @@ public class tttserver {
                     index = 2 * (((3 * row) - 2) + (column - 1)) - 1;
 
                     System.out.println(index);
-
-                    // [(row - 1) * 8 ] + [(2 * col) - 1] - 1
-
-                    // 2 * (((3 * row) - 2) + (column - 1))
                     
                 } else {
                     index = Integer.parseInt(moveElements[2]) * 2 - 1;
@@ -287,23 +306,34 @@ public class tttserver {
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
                         playerO + " " + playerX + " " + games.get(Integer.parseInt(message[1]))[2]; 
                     }
+                    
                     wasSuccess = true;
 
                     //checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon);
                 }
             }
+            String end = "";
 
-            Socket oppSocket = clientSockets.get(opp);
-            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
-            
             try {
                 if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
                     response+= " " + moveElements[3];
+                    end = "TERM " +  gameID + " " + moveElements[3] + " KTHXBYE";
+                    System.out.println(end);
+                } else if(!(games.get(Integer.parseInt(message[1]))[2]).contains("*")){
+                    end = "TERM " +  gameID + " " + " KTHXBYE";
+                    System.out.println(end);
                 }
+                Socket oppSocket = clientSockets.get(opp);
+                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
                 out.println(response);
                 oppOut.println(response);
                 System.out.println("Sent " + response);
 
+                if (!end.isEmpty()) {
+                    out.println(end);
+                    oppOut.println(end);
+                    System.out.println("Sent: " + end);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -316,6 +346,8 @@ public class tttserver {
                     response = "YRMV " + message[1] + " " + playerX;
                 }
                 try {
+                    Socket oppSocket = clientSockets.get(opp);
+                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
                     out.println(response);
                     oppOut.println(response);
 
@@ -397,13 +429,18 @@ public class tttserver {
             int gameID = Integer.parseInt(message[1]);
             String[] elements = games.get(gameID);
             String winner = elements[0];
+            String opp = elements[1];
             if (elements[0].equals(clientID)) {
                 winner = elements[1];
+                opp = elements[0];
             }
-            String response = "TERM " + gameID + " " + winner + " KTHXBYE";
+            String response = "TERM " +  gameID + " " + winner + " KTHXBYE";
 
             try {
+                Socket oppSocket = clientSockets.get(opp);
+                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
                 out.println(response);
+                oppOut.print(response);
                 System.out.println("Sent " + response);
                 // out.close();
 
