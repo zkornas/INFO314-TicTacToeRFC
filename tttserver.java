@@ -61,7 +61,7 @@ public class tttserver {
 
                     StringBuilder inputData = new StringBuilder();
 
-                    String line;
+                    //String line;
 
                     while (in.ready()) {
                         inputData.append((char) in.read());
@@ -128,7 +128,7 @@ public class tttserver {
         public static void startSession(String[] message, Socket sock, PrintWriter out) {
             String clientID = message[2];
             String acknowledgment = "SESS " + version + " " + sessionID;
-            String value = 
+            //String value = 
             sessionsAndClients.put(sessionID, clientID);
             sessionID++;
 
@@ -146,7 +146,7 @@ public class tttserver {
 
         public static void createGame(String[] message, Socket sock, PrintWriter out){
             String clientID = message[1];
-            String[] gameElements = {clientID, null, "|*|*|*|*|*|*|*|*|*|"};
+            String[] gameElements = {clientID, null, "|*|*|*|*|*|*|*|*|*|", clientID};
             games.put(gameID, gameElements);
             String response = "JOND " + clientID + " " + gameID;
             gameID++;
@@ -268,15 +268,18 @@ public class tttserver {
                 if((games.get(Integer.parseInt(message[1]))[2]).charAt(index) != '*') {
                     System.out.println(games.get(Integer.parseInt(message[1]))[2]);
                     System.out.println(games.get(Integer.parseInt(message[1]))[2].charAt(index));
-                    response = "Error: Not a valid move";
+                    response = "Error: Not a valid move.";
 
+                } else if(!moveElements[3].equals((games.get(Integer.parseInt(message[1])))[3])){
+                    response = "Error: Not your turn.";
                 } else {
                     // Updates the game status in the game map's value
                     StringBuilder boardBuilder = new StringBuilder(board);
                     boardBuilder.setCharAt(index, playerIcon);
                     (games.get(Integer.parseInt(message[1])))[2] = boardBuilder.toString();
-
+                    (games.get(Integer.parseInt(message[1])))[3] = opp;
                     // Constructs response
+                    
                     if(playerIcon == 'X'){
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
                         playerO + " " + playerO + " " + games.get(Integer.parseInt(message[1]))[2]; 
@@ -289,11 +292,16 @@ public class tttserver {
                     //checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon);
                 }
             }
+
+            Socket oppSocket = clientSockets.get(opp);
+            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+            
             try {
                 if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
                     response+= " " + moveElements[3];
                 }
                 out.println(response);
+                oppOut.println(response);
                 System.out.println("Sent " + response);
 
             } catch (Exception e) {
@@ -308,8 +316,6 @@ public class tttserver {
                     response = "YRMV " + message[1] + " " + playerX;
                 }
                 try {
-                    Socket oppSocket = clientSockets.get(opp);
-                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
                     out.println(response);
                     oppOut.println(response);
 
@@ -354,8 +360,6 @@ public class tttserver {
                 Character.toString(board.charAt(4)), 
                 Character.toString(board.charAt(6))
             };
-
-            boolean isEqual = false;
 
             String[][] boardArray = {
                 firstRow,

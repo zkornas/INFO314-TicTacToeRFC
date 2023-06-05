@@ -293,6 +293,9 @@ public class tttserver {
                 if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
                     response+= " " + moveElements[3];
                 }
+                Socket oppSocket = clientSockets.get(opp);
+                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                oppOut.println(response);
                 out.println(response);
                 System.out.println("Sent " + response);
 
