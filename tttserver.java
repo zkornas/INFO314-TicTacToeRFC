@@ -22,24 +22,25 @@ public class tttserver {
 
         Socket socket = null;
 
+        Thread t2 = new Thread(new MyRunnableUDP(servSockU));
+        t2.start();
+
         while(LISTEN == true) {
 
-            if (((socket = servSockT.accept()) != null)) {
-                Thread t1 = new Thread(new MyRunnableTCP(socket));
-                t1.start();
-            }
+            Thread t1 = new Thread(new MyRunnableTCP(servSockT));
+            t1.start();
     
+        }
         //t1.setDaemon(true);
-        //Thread t2 = new Thread(new MyRunnableUDP(servSockU));
-        //t2.setDaemon(true);
 
+        //t2.setDaemon(true);
 
         //t2.start();
 
         //t1.join();
         //t2.join();
 
-        }
+        //}
 
 
         servSockU.close();
@@ -47,15 +48,16 @@ public class tttserver {
     }
 
     public static class MyRunnableTCP implements Runnable {
-        private Socket sock;
+        private ServerSocket soc;
         
-        public MyRunnableTCP(Socket s) {
-            this.sock = s;
+        public MyRunnableTCP(ServerSocket s) {
+            this.soc = s;
         }
     
         public void run() {
             try {
- 
+
+                Socket sock = soc.accept();
                 System.out.println("Listening for TCP connection on port " + 3116);
                 System.out.println("Connection Successful!");
 
@@ -453,7 +455,7 @@ public class tttserver {
             e.printStackTrace();
         }
 
-    }
+    
 
     public static void goodbye(String[] message, Socket sock, PrintWriter out) {
         String clientID = "";
@@ -531,15 +533,76 @@ public class tttserver {
         public void run() {
             try {
                 System.out.println("Listening for UDP connection on port " + 3116);
+
+                while(true) {
+
                 byte[] b = new byte[256];
                 DatagramPacket pack = new DatagramPacket(b, b.length);
                 soc.receive(pack);
+
                 InetAddress address = pack.getAddress();
+
                 int port = pack.getPort();
-                String message = new String(pack.getData(), 0, pack.getLength());
-                byte[] response = message.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
-                soc.send(newP);
+
+                /// Processing goes here!
+
+                byte[] rec = pack.getData();
+                
+                String message = new String(rec);
+                System.out.println(message);
+
+            //     String[] message = savedData.split(" ");
+
+            //         if (message[0].equals("HELO")) {
+            //             if (Integer.parseInt(message[1]) != 1){
+            //                 System.out.println(message[1]);
+            //                 out.println("Error: Invalid version");
+            //             }
+            //             System.out.println("Invoking handleClient");
+            //             startSession(message, sock, out);
+            //         } else if (message[0].equals("CREA")){
+            //             System.out.println("Invoking createGame");
+            //             createGame(message, sock, out);
+            //         } else if (message[0].equals("LIST")){
+            //             System.out.println("Invokign listGames");
+            //             listGames(message, sock, out);
+            //         } else if (message[0].equals("STAT")){
+            //             System.out.println("Invoking gameStatus");
+            //             gameStatus(message, sock, out);
+            //         } else if (message[0].equals("MOVE")){
+            //             System.out.println("Invoking makeMove");
+            //             makeMove(message, sock, out);
+            //         } else if (message[0].equals("JOIN")){
+            //             System.out.println("Invoking join");
+            //             join(message, sock, out);
+            //         } else if (message[0].equals("STAT")){
+            //             System.out.println("Invoking gameStat");
+            //             gameStat(message, sock, out);
+            //         } else if (message[0].equals("QUIT")){
+            //             System.out.println("Invoking quitGame");
+            //             quitGame(message, sock, out);
+            //         } else if (message[0].equals("GDBY")){
+            //             System.out.println("Invoking goodbye");
+            //             goodbye(message, sock, out);
+            //         }
+                    
+            //         // Terminate the loop if "exit" is received
+            //         if (savedData.equals("exit")) {
+            //             LISTEN = false;
+            //             break;
+            //         }
+
+
+
+
+            //     String message ; // sending goes here!
+            //     byte[] response = message.getBytes(); // message will be the response
+            //     DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
+            //     soc.send(newP);
+
+            //     }
+
+            }
 
             } catch (Exception e) {
                 e.printStackTrace();
