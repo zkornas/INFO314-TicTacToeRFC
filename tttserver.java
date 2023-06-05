@@ -24,7 +24,7 @@ public class tttserver {
 
         while((socket = servSockT.accept()) != null) {
 
-        Thread t1 = new Thread(new MyRunnableTCP(socket));
+        Thread t1 = new Thread(new MyRunnableTCP(servSockT));
         //t1.setDaemon(true);
         //Thread t2 = new Thread(new MyRunnableUDP(servSockU));
         //t2.setDaemon(true);
@@ -43,15 +43,15 @@ public class tttserver {
     }
 
     public static class MyRunnableTCP implements Runnable {
-        private Socket sock;
+        private ServerSocket soc;
         
-        public MyRunnableTCP(Socket s) {
-            this.sock = s;
+        public MyRunnableTCP(ServerSocket s) {
+            this.soc = s;
         }
     
         public void run() {
             try {
-
+                Socket sock = soc.accept();
                 System.out.println("Listening for TCP connection on port " + 3116);
                 System.out.println("Connection Successful!");
 
@@ -125,6 +125,7 @@ public class tttserver {
                 e.printStackTrace();
             }
         }
+    }
         
 
         public static void gameStat(String[] message, Socket sock, PrintWriter out){
@@ -542,4 +543,3 @@ public class tttserver {
 
         }
     }
-}
