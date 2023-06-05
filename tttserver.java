@@ -150,6 +150,7 @@ public class tttserver {
             games.put(gameID, gameElements);
             String response = "JOND " + clientID + " " + gameID;
             gameID++;
+
             try {
                 out.println(response);
                 System.out.println("Sent " + response);
@@ -161,8 +162,7 @@ public class tttserver {
         }
 
         public static void listGames(String[] message, Socket sock, PrintWriter out){
-            // Currently sends without "GAMS" ie. "GID1 GID2"
-            String gameList = "";
+            String gameList = "GAMS ";
             if (message[1].equals("ALL")){
                 Set<Integer> keys = games.keySet();
                 for(Integer key: keys){
@@ -190,7 +190,6 @@ public class tttserver {
         }
 
         public static void gameStatus(String[] message, Socket sock, PrintWriter out){
-            // Currently sends message formatted like "BORD GID1STAT"
             String gameID = message[1];
             String[] currGame = games.get(Integer.parseInt(gameID));
             String response = "BORD "+ gameID + message[0];
@@ -209,8 +208,6 @@ public class tttserver {
 
         public static void makeMove(String[] message, Socket sock, PrintWriter out){
             // Assuming structure: MOVE <game ID> <position> <client ID>
-            // ^ no <client id> in MOVE message structure
-            // YRMV has wrong structure. I get "YRMV CID1" when should be "YRMV GID1 CID1"
             String clientID = "";
             for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
                 if (Objects.equals(entry.getValue(), sock)){
@@ -220,29 +217,30 @@ public class tttserver {
 
             String[] moveElements = {"MOVE", message[1], message[2], clientID};
             String response = "";
-            Boolean wasSuccess = null;
+            Boolean wasSuccess = false;
             String opp = "";
             String playerX = "";
             String playerO = "";
             char playerIcon = 'X';
 
-            if(!games.containsKey(moveElements[1])){
+            if(!games.containsKey(Integer.parseInt(message[1]))){
+                System.out.println(moveElements[1]);
                 response = "Error: Game not found.";
             // Checks if the client's ID matches the IDs of the players in the game map
-            } else if(!moveElements[3].equals((games.get(moveElements[1]))[0]) || !moveElements[3].equals((games.get(moveElements[1]))[1])){
+            } else if(!moveElements[3].equals((games.get(Integer.parseInt(message[1])))[0]) && !moveElements[3].equals((games.get(Integer.parseInt(message[1])))[1])){
                 response = "Error: You are not a player of this game.";
             } else {
-                String board = (games.get(moveElements[1]))[3];
+                String board = (games.get(Integer.parseInt(message[1])))[2];
 
                 // Checks if player is X or O based on position in map value
-                if (moveElements[3].equals(games.get(moveElements[1])[1])){
+                if (moveElements[3].equals(games.get(Integer.parseInt(message[1]))[1])){
                     playerIcon = 'O';
                     playerO = moveElements[3];
-                    playerX = games.get(moveElements[1])[0];
+                    playerX = games.get(Integer.parseInt(message[1]))[0];
                     opp = playerX;
                 } else {
                     playerX = moveElements[3];
-                    playerO = games.get(moveElements[1])[1];
+                    playerO = games.get(Integer.parseInt(message[1]))[1];
                     opp = playerO;
                 }
 
@@ -255,32 +253,46 @@ public class tttserver {
                     int row = Integer.parseInt(coordinates[0]);
                     int column = Integer.parseInt(coordinates[1]);
 
-                    index = (3 - row) * 3 + (column - 1);
+                    index = 2 * (((3 * row) - 2) + (column - 1)) - 1;
+
+                    System.out.println(index);
+
+                    // [(row - 1) * 8 ] + [(2 * col) - 1] - 1
+
+                    // 2 * (((3 * row) - 2) + (column - 1))
                     
                 } else {
-                    index = Integer.parseInt(moveElements[2]) * 2;
+                    index = Integer.parseInt(moveElements[2]) * 2 - 1;
                 }
                 // checks if space on board is available for move.
-                if(games.get(moveElements[1])[3] != "*"){
+                if((games.get(Integer.parseInt(message[1]))[2]).charAt(index) != '*') {
+                    System.out.println(games.get(Integer.parseInt(message[1]))[2]);
+                    System.out.println(games.get(Integer.parseInt(message[1]))[2].charAt(index));
                     response = "Error: Not a valid move";
 
                 } else {
                     // Updates the game status in the game map's value
                     StringBuilder boardBuilder = new StringBuilder(board);
                     boardBuilder.setCharAt(index, playerIcon);
-                    (games.get(moveElements[1]))[3] = boardBuilder.toString();
+                    (games.get(Integer.parseInt(message[1])))[2] = boardBuilder.toString();
 
                     // Constructs response
                     if(playerIcon == 'X'){
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                        playerO + " " + playerO; 
+                        playerO + " " + playerO + " " + games.get(Integer.parseInt(message[1]))[2]; 
                     } else {
                         response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                        playerO + " " + playerX; 
+                        playerO + " " + playerX + " " + games.get(Integer.parseInt(message[1]))[2]; 
                     }
+                    wasSuccess = true;
+
+                    //checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon);
                 }
             }
             try {
+                if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
+                    response+= " " + moveElements[3];
+                }
                 out.println(response);
                 System.out.println("Sent " + response);
 
@@ -288,11 +300,12 @@ public class tttserver {
                 e.printStackTrace();
             }
 
-            if(wasSuccess){
+            System.out.println(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon));
+            if(wasSuccess && !checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
                 if(playerIcon == 'X'){
-                    response = "YRMV " + " " + playerO;
+                    response = "YRMV " + message[1] + " " + playerO;
                 } else {
-                    response = "YRMV " + " " + playerX;
+                    response = "YRMV " + message[1] + " " + playerX;
                 }
                 try {
                     Socket oppSocket = clientSockets.get(opp);
@@ -306,6 +319,67 @@ public class tttserver {
                     e.printStackTrace();
                 } 
             }
+        }
+
+        public static boolean checkWins(String board, char playerIcon){
+            board = board.replace("|", "");
+
+            String[] firstRow = board.substring(0,3).split("");
+            String[] secondRow = board.substring(3,6).split("");
+            String[] thirdRow = board.substring(6).split("");
+
+            String[] firstColumn = new String[]{
+                Character.toString(board.charAt(0)), 
+                Character.toString(board.charAt(3)), 
+                Character.toString(board.charAt(6))
+            };
+            String[] secondColumn = new String[]{
+                Character.toString(board.charAt(1)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(7))
+            };
+            String[] thirdColumn = new String[]{
+                Character.toString(board.charAt(2)), 
+                Character.toString(board.charAt(5)), 
+                Character.toString(board.charAt(8))
+            };
+
+            String[] diagonal = new String[]{
+                Character.toString(board.charAt(0)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(8))
+            };
+            String[] antiDiagonal = new String[]{
+                Character.toString(board.charAt(2)), 
+                Character.toString(board.charAt(4)), 
+                Character.toString(board.charAt(6))
+            };
+
+            boolean isEqual = false;
+
+            String[][] boardArray = {
+                firstRow,
+                secondRow,
+                thirdRow,
+                firstColumn,
+                secondColumn,
+                thirdColumn,
+                diagonal,
+                antiDiagonal
+            };
+
+            String[] xWin = new String[]{"X", "X", "X"};
+            String[] oWin = new String[]{"O", "O", "O"};
+
+            for(int i = 0; i < 8; i++){
+                // System.out.println("Curr Board: " + Arrays.toString(boardArray[i]));
+                if(Arrays.equals(boardArray[i], xWin)){
+                    return true;
+                } else if(Arrays.equals(boardArray[i], oWin)){
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static void quitGame(String[] message, Socket sock, PrintWriter out) {
@@ -322,7 +396,7 @@ public class tttserver {
             if (elements[0].equals(clientID)) {
                 winner = elements[1];
             }
-            String response = "TERM " +  gameID + winner + "KTHXBYE";
+            String response = "TERM " + gameID + " " + winner + " KTHXBYE";
 
             try {
                 out.println(response);
@@ -380,7 +454,7 @@ public class tttserver {
 
                 
                 try {
-                    response = "YRMV " + opp;
+                    response = "YRMV " + gameID + " " + opp;
                     Socket oppSocket = clientSockets.get(opp);
                     PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
                     out.println(response);
