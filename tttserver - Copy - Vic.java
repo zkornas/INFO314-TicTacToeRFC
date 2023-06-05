@@ -22,14 +22,17 @@ public class tttserver {
 
         Socket socket = null;
 
-        while((socket = servSockT.accept()) != null) {
+        while(true) {
 
-        Thread t1 = new Thread(new MyRunnableTCP(socket));
+        if (((socket = servSockT.accept()) != null)) {
+            Thread t1 = new Thread(new MyRunnableTCP(socket));
+            t1.start();
+        }
+
         //t1.setDaemon(true);
         //Thread t2 = new Thread(new MyRunnableUDP(servSockU));
         //t2.setDaemon(true);
 
-        t1.start();
         //t2.start();
 
         //t1.join();
