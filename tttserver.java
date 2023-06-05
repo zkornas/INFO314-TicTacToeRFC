@@ -13,6 +13,7 @@ public class tttserver {
     public static final int version = 1;
     public static HashMap <Integer, String[]> games = new HashMap<>();
     public static int gameID = 1;
+    public static HashMap <String, InetAddress> clientAddress = new HashMap<>();
 
 // Open TCP Socket and wait for connection
 // Open UDP socket and wait for connection
@@ -25,12 +26,11 @@ public class tttserver {
 
         Thread t2 = new Thread(new MyRunnableUDP(servSockU));
         t2.start();
-
+                                      
         while(LISTEN == true) {
 
             Thread t1 = new Thread(new MyRunnableTCP(servSockT));
             t1.start();
-    
         }
         //t1.setDaemon(true);
 
@@ -159,6 +159,8 @@ public class tttserver {
                 byte[] rec = pack.getData();
                 
                 String savedData = new String(rec);
+
+                savedData = savedData.trim();
 
                 String[] message = savedData.split(" ");
 
@@ -402,6 +404,17 @@ public class tttserver {
         }
         String end = "";
 
+        String oppProtocol = "";
+        Socket oppSockTCP = null;
+        DatagramSocket oppSockUDP = null;
+        if(clientSocketsTCP.containsKey(opp)){
+            oppSockTCP = clientSocketsTCP.get(opp);
+            oppProtocol = "TCP";
+        } else {
+            oppSockUDP = clientSocketsUDP.get(opp);
+            oppProtocol = "UDP";
+        }
+
         try {
             if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
                 response+= " " + moveElements[3];
@@ -411,15 +424,29 @@ public class tttserver {
                 end = "TERM " +  gameID + " " + " KTHXBYE";
                 System.out.println(end);
             }
-            Socket oppSocket = clientSocketsTCP.get(opp);
-            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+            if(oppProtocol.equals("TCP")){
+                PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
+                oppOut.println(response);
+            } else {
+                byte[] reply = response.getBytes(); // message will be the response
+                DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), 3116);
+                oppSockUDP.send(newP);
+            }
+
+
             out.println(response);
-            oppOut.println(response);
             System.out.println("Sent " + response);
 
             if (!end.isEmpty()) {
+                if(oppProtocol.equals("TCP")){
+                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
+                    oppOut.println(end);
+                } else {
+                    byte[] reply = end.getBytes(); // message will be the response
+                    DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), 3116);
+                    oppSockUDP.send(newP);
+                }
                 out.println(end);
-                oppOut.println(end);
                 System.out.println("Sent: " + end);
             }
         } catch (Exception e) {
@@ -433,11 +460,24 @@ public class tttserver {
             } else {
                 response = "YRMV " + message[1] + " " + playerX;
             }
+            if(oppProtocol.equals("TCP")){
+                try{
+                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
+                    oppOut.println(response);
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
+            } else {
+                try{
+                    byte[] reply = response.getBytes(); // message will be the response
+                    DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), 3116);
+                    oppSockUDP.send(newP);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
             try {
-                Socket oppSocket = clientSockets.get(opp);
-                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
                 out.println(response);
-                oppOut.println(response);
 
                 System.out.println("Sent " + response);
 
@@ -508,13 +548,14 @@ public class tttserver {
 
     public static void quitGame(String[] message, Socket sock, PrintWriter out) {
         String clientID = "";
-        for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+        for(Map.Entry<String, Socket> entry : clientSocketsTCP.entrySet()){
             if (Objects.equals(entry.getValue(), sock)){
                 clientID = entry.getKey();
             }
         }
 
-        int gameID = Integer.parseInt(message[1]);
+        System.out.println(message[2]);
+        int gameID = Integer.parseInt(message[2]);
         String[] elements = games.get(gameID);
         String winner = elements[0];
         String opp = elements[1];
@@ -524,11 +565,27 @@ public class tttserver {
         }
         String response = "TERM " +  gameID + " " + winner + " KTHXBYE";
 
+        if(clientSocketsTCP.containsKey(opp)){
+            try{
+                Socket oppSock = clientSocketsTCP.get(opp);
+                PrintWriter oppOut = new PrintWriter(oppSock.getOutputStream(), true);
+                oppOut.println(response);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        } else {
+            try{
+                DatagramSocket oppSoc = clientSocketsUDP.get(opp);
+                byte[] reply = response.getBytes(); // message will be the response
+                DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), 3116);
+                oppSoc.send(newP);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+
         try {
-            Socket oppSocket = clientSockets.get(opp);
-            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
             out.println(response);
-            oppOut.print(response);
             System.out.println("Sent " + response);
             // out.close();
 
@@ -540,7 +597,7 @@ public class tttserver {
 
     public static void goodbye(String[] message, Socket sock, PrintWriter out) {
         String clientID = "";
-        for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+        for(Map.Entry<String, Socket> entry : clientSocketsTCP.entrySet()){
             if (Objects.equals(entry.getValue(), sock)){
                 clientID = entry.getKey();
             }
@@ -562,7 +619,7 @@ public class tttserver {
 
     public static void join(String[] message, Socket sock, PrintWriter out) {
         String clientID = "";
-        for(Map.Entry<String, Socket> entry : clientSockets.entrySet()){
+        for(Map.Entry<String, Socket> entry : clientSocketsTCP.entrySet()){
             if (Objects.equals(entry.getValue(), sock)){
                 clientID = entry.getKey();
             }
@@ -581,13 +638,19 @@ public class tttserver {
             out.println(response);
             System.out.println("Sent " + response);
 
-            
-            try {
-                response = "YRMV " + gameID + " " + opp;
-                Socket oppSocket = clientSockets.get(opp);
-                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
-                out.println(response);
+            response = "YRMV " + gameID + " " + opp;
+
+            if(clientSocketsTCP.containsKey(opp)){
+                PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
                 oppOut.println(response);
+            } else {
+                byte[] reply = response.getBytes(); // message will be the response
+                DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), 3116);
+                (clientSocketsUDP.get(opp)).send(newP);
+            }
+
+            try {
+                out.println(response);
 
                 System.out.println("Sent " + response);
 
@@ -603,6 +666,7 @@ public class tttserver {
 
     }
 
+///// UDP STUFF /////
 
     public static void gameStat(String[] message, DatagramSocket soc, InetAddress address, int port){
         String gameID = message[1];
@@ -614,9 +678,13 @@ public class tttserver {
             response = "BORD " + gameID + " " + games.get(Integer.parseInt(message[1]))[0] + " " + 
             games.get(Integer.parseInt(message[1]))[1] + " " + games.get(Integer.parseInt(message[1]))[2];
         }
-        byte[] reply = response.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try {
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
     
     }
 
@@ -629,11 +697,16 @@ public class tttserver {
         sessionID++;
 
         clientSocketsUDP.put(clientID, soc);
+        clientAddress.put(clientID, address);
 
          // sending goes here!
-        byte[] response = acknowledgment.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
-        soc.send(newP);
+        try {
+            byte[] response = acknowledgment.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
+            soc.send(newP);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
 
     }
 
@@ -644,9 +717,13 @@ public class tttserver {
         String response = "JOND " + clientID + " " + gameID;
         gameID++;
 
-        byte[] reply = response.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try {
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -668,9 +745,13 @@ public class tttserver {
             gameList = "Error: Please choose CURR or ALL";
         }
 
-        byte[] reply = gameList.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try{
+            byte[] reply = gameList.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
 
     }
 
@@ -682,9 +763,14 @@ public class tttserver {
             response = response + (message[1] + " " + message[2] + " " + message[3]);
         }
 
-        byte[] reply = response.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try {
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     public static void makeMove(String[] message, DatagramSocket soc, InetAddress address, int port){
@@ -772,13 +858,13 @@ public class tttserver {
         }
         String end = "";
         String oppProtocol = "";
-        Socket oppSockTCP;
-        DatagramSocket oppSockUDP;
+        Socket oppSockTCP = null;
+        DatagramSocket oppSockUDP = null;
         if(clientSocketsTCP.containsKey(opp)){
-            Socket oppSocket = clientSocketsTCP.get(opp);
+            oppSockTCP = clientSocketsTCP.get(opp);
             oppProtocol = "TCP";
         } else {
-            DatagramSocket oppSock = clientSocketsUDP.get(opp);
+            oppSockUDP = clientSocketsUDP.get(opp);
             oppProtocol = "UDP";
         }
 
@@ -791,26 +877,26 @@ public class tttserver {
                 end = "TERM " +  gameID + " " + " KTHXBYE";
                 System.out.println(end);
             }
-            if(oppProtocl.equals("TCP")){
-                PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+            if(oppProtocol.equals("TCP")){
+                PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
                 oppOut.println(response);
             } else {
                 byte[] reply = response.getBytes(); // message will be the response
                 DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-                oppSock.send(newP);
+                oppSockUDP.send(newP);
             }
             byte[] reply = response.getBytes(); // message will be the response
             DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
             soc.send(newP);
 
             if (!end.isEmpty()) {
-                if(oppProtocl.equals("TCP")){
-                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                if(oppProtocol.equals("TCP")){
+                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
                     oppOut.println(end);
                 } else {
                     reply = end.getBytes(); // message will be the response
                     newP = new DatagramPacket(reply, reply.length, address, port);
-                    oppSock.send(newP);
+                    oppSockUDP.send(newP);
                 }
                 reply = end.getBytes(); // message will be the response
                 newP = new DatagramPacket(reply, reply.length, address, port);
@@ -828,13 +914,13 @@ public class tttserver {
                 response = "YRMV " + message[1] + " " + playerX;
             }
             try {
-                if(oppProtocl.equals("TCP")){
-                    PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
+                if(oppProtocol.equals("TCP")){
+                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
                     oppOut.println(response);
                 } else {
                     byte[] reply = response.getBytes(); // message will be the response
                     DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-                    oppSock.send(newP);
+                    oppSockUDP.send(newP);
                 }
                 byte[] reply = response.getBytes(); // message will be the response
                 DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
@@ -867,17 +953,29 @@ public class tttserver {
         String response = "TERM " +  gameID + " " + winner + " KTHXBYE";
 
         if(clientSocketsTCP.containsKey(opp)){
-            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
-            oppOut.println(response);
+            try {
+                PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
+                oppOut.println(response);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         } else {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            oppSock.send(newP);
+            try{
+                byte[] reply = response.getBytes(); // message will be the response
+                DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+                (clientSocketsUDP.get(opp)).send(newP);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
         }
 
-        byte[] reply = response.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try {
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
 
@@ -900,7 +998,7 @@ public class tttserver {
     public static void goodbye(String[] message, DatagramSocket soc, InetAddress address, int port) {
         String clientID = "";
         for(Map.Entry<String, DatagramSocket> entry : clientSocketsUDP.entrySet()){
-            if (Objects.equals(entry.getValue(), sock)){
+            if (Objects.equals(entry.getValue(), soc)){
                 clientID = entry.getKey();
             }
         }
@@ -922,10 +1020,12 @@ public class tttserver {
     public static void join(String[] message, DatagramSocket soc, InetAddress address, int port) {
         String clientID = "";
         for(Map.Entry<String, DatagramSocket> entry : clientSocketsUDP.entrySet()){
-            if (Objects.equals(entry.getValue(), sock)){
+            if (Objects.equals(entry.getValue(), soc)){
                 clientID = entry.getKey();
             }
         }
+
+        System.out.println(Arrays.toString(message));
 
         int gameID = Integer.parseInt(message[1]);
         String[] state = games.get(gameID);
@@ -935,25 +1035,42 @@ public class tttserver {
         
         String response = "JOND " + clientID + " " + gameID;
 
-        byte[] reply = response.getBytes(); // message will be the response
-        DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try{
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
         System.out.println("Sent " + response);
 
         response = "YRMV " + gameID + " " + opp;
 
         if(clientSocketsTCP.containsKey(opp)){
-            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
-            oppOut.println(response);
+            try {
+                PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
+                oppOut.println(response);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
         } else {
-            reply = response.getBytes(); // message will be the response
-            newP = new DatagramPacket(reply, reply.length, address, port);
-            oppSock.send(newP);
+            try {
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            (clientSocketsUDP.get(opp)).send(newP);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         
-        reply = response.getBytes(); // message will be the response
-        newP = new DatagramPacket(reply, reply.length, address, port);
-        soc.send(newP);
+        try {
+            byte[] reply = response.getBytes(); // message will be the response
+            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
+            soc.send(newP);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 }
