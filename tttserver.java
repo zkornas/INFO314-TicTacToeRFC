@@ -102,9 +102,6 @@ public class tttserver {
                     } else if (message[0].equals("LIST")){
                         System.out.println("Invokign listGames");
                         listGames(message, sock, out);
-                    } else if (message[0].equals("STAT")){
-                        System.out.println("Invoking gameStatus");
-                        gameStatus(message, sock, out);
                     } else if (message[0].equals("MOVE")){
                         System.out.println("Invoking makeMove");
                         makeMove(message, sock, out);
@@ -181,9 +178,6 @@ public class tttserver {
                     } else if (message[0].equals("LIST")){
                         System.out.println("Invokign listGames");
                         listGames(message, soc, address, port);
-                    } else if (message[0].equals("STAT")){
-                        System.out.println("Invoking gameStatus");
-                        gameStatus(message, soc, address, port);
                     } else if (message[0].equals("MOVE")){
                         System.out.println("Invoking makeMove");
                         makeMove(message, soc, address, port);
@@ -310,23 +304,6 @@ public class tttserver {
             e.printStackTrace();
         }
 
-    }
-
-    public static void gameStatus(String[] message, Socket sock, PrintWriter out){
-        String gameID = message[1];
-        String[] currGame = games.get(Integer.parseInt(gameID));
-        String response = "BORD "+ gameID + message[0];
-        if(currGame[1] != null){
-            response = response + (message[1] + " " + message[2] + " " + message[3]);
-        }
-
-        try {
-            out.println(response);
-            System.out.println("Sent " + response);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public static void makeMove(String[] message, Socket sock, PrintWriter out){
@@ -764,24 +741,6 @@ public class tttserver {
             DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
             soc.send(newP);
         } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void gameStatus(String[] message, DatagramSocket soc, InetAddress address, int port){
-        String gameID = message[1];
-        String[] currGame = games.get(Integer.parseInt(gameID));
-        String response = "BORD "+ gameID + message[0];
-        if(currGame[1] != null){
-            response = response + (message[1] + " " + message[2] + " " + message[3]);
-        }
-
-        try {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-        } catch (Exception e) {
             e.printStackTrace();
         }
 
