@@ -242,7 +242,7 @@ public class tttserver {
         // Handles response to client
     public static void startSession(String[] message, Socket sock, PrintWriter out) {
         String clientID = message[2];
-        String acknowledgment = "SESS " + version + " " + sessionID;
+        String acknowledgment = "SESS " + version + " " + clientID;
         //String value = 
         sessionsAndClients.put(sessionID, clientID);
         sessionID++;
