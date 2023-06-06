@@ -278,21 +278,29 @@ public class tttserver {
 
     public static void listGames(String[] message, Socket sock, PrintWriter out){
         String gameList = "GAMS ";
-        if (message[1].equals("CURR")){
+        if (message.length == 1) {
             Set<Integer> keys = games.keySet();
             for(Integer key: keys){
                 gameList = gameList + (key + " ");
             }
-        } else if (message[1].equals("ALL")){
-            for (Map.Entry<Integer, String[]> entry : games.entrySet()){
-                String[] gameState = entry.getValue();
-                if (gameState[2].contains("*")){
-                    gameList = gameList + (entry.getKey() + " ");
-                }
-            }
         } else {
-            gameList = "Error: Please choose CURR or ALL";
+            if (message[1].equals("CURR")){
+                Set<Integer> keys = games.keySet();
+                for(Integer key: keys){
+                    gameList = gameList + (key + " ");
+                }
+            } else if (message[1].equals("ALL")){
+                for (Map.Entry<Integer, String[]> entry : games.entrySet()){
+                    String[] gameState = entry.getValue();
+                    if (gameState[2].contains("*")){
+                        gameList = gameList + (entry.getKey() + " ");
+                    }
+                }
+            } else {
+                gameList = "Error: Please choose CURR or ALL";
+            }
         }
+
 
         try {
             out.println(gameList);
