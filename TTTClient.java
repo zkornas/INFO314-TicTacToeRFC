@@ -12,8 +12,6 @@ public class TTTClient {
 	public int port;
 	public String protocol;
 	public String clientId;
-	public boolean inGame;
-	public boolean myTurn;
 	public boolean inSession;
 	public String currentGameId;
 
@@ -111,7 +109,6 @@ public class TTTClient {
 			System.out.println("–––––––––––––");
 			System.out.println("| " + board[7] + " | " + board[8] + " | " + board[9] + " |");
 			System.out.println("‾‾‾‾‾‾‾‾‾‾‾‾‾");
-			inGame = false;
 			currentGameId = "";
         } else if (parts.length == 6){
             System.out.println("In game, waiting for " + parts[parts.length - 2] + " to make the next move");			
@@ -147,7 +144,6 @@ public class TTTClient {
         } else {
             System.out.println("No winner, stalemate ");
         }
-		inGame = false;
 		currentGameId = "";
 		
     }
@@ -156,7 +152,6 @@ public class TTTClient {
         // spl("joined successfully ")
         System.out.println(parts[1] + " has successfully joined the game with id " + parts[2]);
 		currentGameId = parts[2];
-		inGame = true;
     }
 
     public void handleSess (String[] parts) {
@@ -169,10 +164,8 @@ public class TTTClient {
 		// Edited parts[1] to parts[2]
 		if (parts[2].equals(clientId)) {
 			System.out.println("It is now your turn to make a move.");
-			myTurn = true;
 		} else {
 			System.out.println("it is now " + parts[2] + "'s turn to move.");
-			myTurn = false;
 		}
     }
 
@@ -220,57 +213,29 @@ public class TTTClient {
 		
 		sendHELO();
 		while (inSession) {
-			while (inSession&& !inGame) {
-				Thread.sleep(2000);
-				System.out.println("Available Commands:");
-				System.out.println("  CREA				(create a game)");
-				System.out.println("  JOIN <game-id>		(join a game)");
-				System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
-				System.out.println("  STAT <game-id>		(display status of a game)");
-				System.out.println("  GDBY				(end session)");
+			Thread.sleep(2000);
+			System.out.println("Available Commands:");
+			System.out.println("  CREA				(create a game)");
+			System.out.println("  JOIN <game-id>		(join a game)");
+			System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
+			System.out.println("  STAT <game-id>		(display status of a game)");
+			System.out.println("  MOVE <move>			((ingame) place a token on square <move>)");
+			System.out.println("  GDBY				(end session)");
 
-				String command = scanner.nextLine();
-				String[] commandParts = command.split(" ");
-				if (commandParts[0].equals("CREA")) {
-					command += " " + clientId;
-					inGame = true;
-				}
-				sendMessage(command + "\r\n");
-				if (commandParts[0].equals("GDBY")) {
-					inSession = false;
-				}
+			String command = scanner.nextLine();
+			String[] commandParts = command.split(" ");
+			if (commandParts[0].equals("CREA")) {
+				command += " " + clientId;
+			} else if (commandParts[0].equals("MOVE")) {
+				command = commandParts[0] + " " + currentGameId + " " + commandParts[1];
+			} else if (commandParts[0].equals("QUIT")) {
+				command = command + " " + currentGameId;
+			} else if (commandParts[0].equals("GDBY")) {
+				inSession = false;
 			}
-			while (inSession && inGame) {
-				Thread.sleep(2000);
-				if (myTurn) {
-					System.out.println("Available Commands:");
-					System.out.println("  MOVE <move>         (place a token on square <move>)");
-					System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
-					System.out.println("  STAT <game-id>		(display status of a game)");
-					System.out.println("  QUIT");
-					System.out.println("  GDBY");
-				} else {
-					System.out.println("Available Commands:");
-					System.out.println("  LIST <CURR/ALL>		(list current games/list all games)");
-					System.out.println("  STAT <game-id>		(display status of a game)");
-					System.out.println("  QUIT");
-					System.out.println("  GDBY");
-				}
-				String command = scanner.nextLine();
-				String[] commandParts = command.split(" ");
-				if (commandParts[0].equals("MOVE")) {
-					command = commandParts[0] + " " + currentGameId + " " + commandParts[1];
-				} else if (commandParts[0].equals("QUIT")) {
-					command = command + " " + currentGameId;
-				}
-				sendMessage(command + "\r\n");
-				if (commandParts[0].equals("GDBY")) {
-					inGame = false;
-					inSession = false;
-				}
-			}
-
+			sendMessage(command + "\r\n");
 		}
+
 		System.out.println("Ending session...");
 		if (protocol.equals("TCP")) tcpSocket.close();
 		else udpSocket.close();
