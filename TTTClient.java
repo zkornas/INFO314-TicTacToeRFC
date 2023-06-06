@@ -17,24 +17,29 @@ public class TTTClient {
 	public boolean inSession;
 	public String currentGameId;
 
-	public TTTClient(String hostname, int port) {
+	public TTTClient(String hostname, int port, String protocol) throws IOException {
 		scanner = new Scanner(System.in);
 		this.hostname = hostname;
 		this.port = port;
+		this.protocol = protocol;
+		try {
+			establishConnection();
+		} catch (IOException ex) {
+			System.out.println("Input/Output error. Restart the client");
+			System.exit(1);
+		}
 	}
     
     // Method to establish connection
-    public void establishConnection(String type) throws IOException {
+    private void establishConnection() throws IOException {
         // Choose the connection type
-        if (type.equalsIgnoreCase("TCP")) {
+        if (protocol.equalsIgnoreCase("TCP")) {
             tcpSocket = new Socket(hostname, port);
             in = new BufferedReader(new InputStreamReader(tcpSocket.getInputStream()));
             out = new PrintWriter(tcpSocket.getOutputStream(), true);
-			protocol = "TCP";
 			System.out.println("Established TCP connection to " + hostname + " on port " + port);
-        } else if (type.equalsIgnoreCase("UDP")) {
+        } else if (protocol.equalsIgnoreCase("UDP")) {
             udpSocket = new DatagramSocket();
-			protocol = "UDP";
 			System.out.println("UDP Socket created");
             // in = new BufferedReader(new InputStreamReader(udpSocket.getInputStream()));
             // out = new PrintWriter(udpSocket.getOutputStream(), true);
@@ -215,7 +220,8 @@ public class TTTClient {
 		
 		sendHELO();
 		while (inSession) {
-			while (!inGame) {
+			while (inSession&& !inGame) {
+				Thread.sleep(2000);
 				System.out.println("Available Commands:");
 				System.out.println("  CREA				(create a game)");
 				System.out.println("  JOIN <game-id>		(join a game)");
@@ -233,9 +239,9 @@ public class TTTClient {
 				if (commandParts[0].equals("GDBY")) {
 					inSession = false;
 				}
-				Thread.sleep(2000);
 			}
-			while (inGame) {
+			while (inSession && inGame) {
+				Thread.sleep(2000);
 				if (myTurn) {
 					System.out.println("Available Commands:");
 					System.out.println("  MOVE <move>         (place a token on square <move>)");
@@ -262,12 +268,13 @@ public class TTTClient {
 					inGame = false;
 					inSession = false;
 				}
-				Thread.sleep(2000);
 			}
 
 		}
+		System.out.println("Ending session...");
 		if (protocol.equals("TCP")) tcpSocket.close();
 		else udpSocket.close();
+		System.exit(1);
 	}
     
     public static void main(String[] args) {
@@ -287,11 +294,10 @@ public class TTTClient {
 
         try {
             // Create the client
-            TTTClient client = new TTTClient(hostname, port);
-            // Connect to the server
-            client.establishConnection(protocol);
+            TTTClient client = new TTTClient(hostname, port, protocol);
             // Start the interactive loop
 			client.startGame(); 
+
         } catch (Exception e) {
             e.printStackTrace();
         }
