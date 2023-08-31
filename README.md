@@ -17,11 +17,11 @@ The grade for this project is broken out across several parts: writing a console
     * make a move on the board
     * plays through to game termination
     * starts a second game
-* communicates over either TCP or UDP
+* communicates over TCP
 * provides console output about communication
     * also known as "diagnostic logging"
 
-Be sure to allow for the client to play over either TCP or UDP, either by accepting a command-line parameter or asking via some kind of interactive prompt.
+Be sure to allow for the client to play over TCP, either by accepting a command-line parameter or asking via some kind of interactive prompt.
 
 ### Write a TTTP Server (5pts)
 
@@ -31,7 +31,7 @@ Be sure to allow for the client to play over either TCP or UDP, either by accept
     * validate player moves
     * plays through to game termination
 * manages up to 10 clients simultaneously
-* accepts communication over TCP or UDP
+* accepts communication over TCP
 * provides console output about communication (diagnostic logging)
 
 Diagnostic logging levels should be able to be dynamically configured via a command-line parameter or configuration file, and any changes in configuration take place on restart.
