@@ -8,25 +8,16 @@ public class tttserver {
     public static Boolean LISTEN = true;
     public static HashMap <Integer, String> sessionsAndClients = new HashMap<>();
     public static HashMap <String, Socket> clientSocketsTCP = new HashMap<>();
-    public static HashMap <String, DatagramSocket> clientSocketsUDP = new HashMap<>();
-    public static HashMap <String, Integer> clientPort = new HashMap<>();
     public static int sessionID = 1;
     public static final int version = 1;
     public static HashMap <Integer, String[]> games = new HashMap<>();
     public static int gameID = 1;
-    public static HashMap <String, InetAddress> clientAddress = new HashMap<>();
 
 // Open TCP Socket and wait for connection
-// Open UDP socket and wait for connection
 
     public static void main(String[] args) throws Exception {
         ServerSocket servSockT = new ServerSocket(PORT);
-        DatagramSocket servSockU = new DatagramSocket(PORT);
-
         Socket socket = null;
-
-        Thread t2 = new Thread(new MyRunnableUDP(servSockU));
-        t2.start();
 
         while(LISTEN = true){
             Thread t1 = new Thread(new MyRunnableTCP(servSockT));
@@ -34,19 +25,7 @@ public class tttserver {
         }
 
         System.in.read();
-        //t1.setDaemon(true);
 
-        //t2.setDaemon(true);
-
-        //t2.start();
-
-        //t1.join();
-        //t2.join();
-
-        //}
-
-
-        servSockU.close();
         servSockT.close();
     }
 
@@ -130,85 +109,6 @@ public class tttserver {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-    }
-
-    public static class MyRunnableUDP implements Runnable {
-        private DatagramSocket soc;
-        public MyRunnableUDP (DatagramSocket s) {
-            this.soc = s;
-        }
-
-        public void run() {
-            try {
-                System.out.println("Listening for UDP connection on port " + 3116);
-
-                while(true) {
-
-                byte[] b = new byte[256];
-                DatagramPacket pack = new DatagramPacket(b, b.length);
-                soc.receive(pack);
-
-                InetAddress address = pack.getAddress();
-
-                int port = pack.getPort();
-
-                /// Processing goes here!
-
-                byte[] rec = pack.getData();
-                
-                String savedData = new String(rec);
-
-                savedData = savedData.trim();
-
-                String[] message = savedData.split(" ");
-
-                     if (message[0].equals("HELO")) {
-                         if (Integer.parseInt(message[1]) != 1){
-                             System.out.println(message[1]);
-                             byte[] reply = ("Error: Invalid version").getBytes(); // message will be the response
-                             DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-                             soc.send(newP);
-                        }
-                        System.out.println("Invoking handleClient");
-                        startSession(message, soc, address, port);
-                    } else if (message[0].equals("CREA")){
-                        System.out.println("Invoking createGame");
-                        createGame(message, soc, address, port);
-                    } else if (message[0].equals("LIST")){
-                        System.out.println("Invokign listGames");
-                        listGames(message, soc, address, port);
-                    } else if (message[0].equals("MOVE")){
-                        System.out.println("Invoking makeMove");
-                        makeMove(message, soc, address, port);
-                    } else if (message[0].equals("JOIN")){
-                        System.out.println("Invoking join");
-                        join(message, soc, address, port);
-                    } else if (message[0].equals("STAT")){
-                        System.out.println("Invoking gameStat");
-                        gameStat(message, soc, address, port);
-                    } else if (message[0].equals("QUIT")){
-                        System.out.println("Invoking quitGame");
-                        quitGame(message, soc, address, port);
-                    } else if (message[0].equals("GDBY")){
-                        System.out.println("Invoking goodbye");
-                        goodbye(message, soc, address, port);
-                    }
-                    
-                    // Terminate the loop if "exit" is received
-                    if (savedData.equals("exit")) {
-                        LISTEN = false;
-                        break;
-                    }
-
-            //     }
-
-            }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
         }
     }
         
@@ -390,19 +290,7 @@ public class tttserver {
             }
         }
         String end = "";
-
-        String oppProtocol = "";
-        Socket oppSockTCP = null;
-        InetAddress oppAddress = null;
-        int oppPort = 0;
-        if(clientSocketsTCP.containsKey(opp)){
-            oppSockTCP = clientSocketsTCP.get(opp);
-            oppProtocol = "TCP";
-        } else {
-            oppAddress = clientAddress.get(opp);
-            oppPort = clientPort.get(opp);
-            oppProtocol = "UDP";
-        }
+        Socket oppSockTCP = clientSocketsTCP.get(opp);
 
         try {
             if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
@@ -413,28 +301,15 @@ public class tttserver {
                 end = "TERM " +  gameID + " " + " KTHXBYE";
                 System.out.println(end);
             }
-            if(oppProtocol.equals("TCP")){
-                PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
-                oppOut.println(response);
-            } else {
-                byte[] reply = response.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(reply, reply.length, oppAddress, oppPort);
-                (clientSocketsUDP.get(opp)).send(newP);
-            }
+            PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
+            oppOut.println(response);
 
 
             out.println(response);
             System.out.println("Sent " + response);
 
             if (!end.isEmpty()) {
-                if(oppProtocol.equals("TCP")){
-                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
-                    oppOut.println(end);
-                } else {
-                    byte[] reply = end.getBytes(); // message will be the response
-                    DatagramPacket newP = new DatagramPacket(reply, reply.length, oppAddress, oppPort);
-                    (clientSocketsUDP.get(opp)).send(newP);
-                }
+                oppOut.println(end);
                 out.println(end);
                 System.out.println("Sent: " + end);
             }
@@ -449,30 +324,18 @@ public class tttserver {
             } else {
                 response = "YRMV " + message[1] + " " + playerX;
             }
-            if(oppProtocol.equals("TCP")){
-                try{
-                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
-                    oppOut.println(response);
-                } catch (Exception e){
-                    e.printStackTrace();
-                }
-            } else {
-                try{
-                    byte[] reply = response.getBytes(); // message will be the response
-                    DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), 3116);
-                    (clientSocketsUDP.get(opp)).send(newP);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+            try{
+                PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
+                oppOut.println(response);
+            } catch (Exception e){
+                e.printStackTrace();
             }
             try {
                 out.println(response);
-
                 System.out.println("Sent " + response);
-
             } catch (Exception e) {
                 e.printStackTrace();
-            } 
+            }
         }
     }
 
@@ -554,31 +417,11 @@ public class tttserver {
         }
         String response = "TERM " +  gameID + " " + winner + " KTHXBYE";
 
-        if(clientSocketsTCP.containsKey(opp)){
-            try{
-                Socket oppSock = clientSocketsTCP.get(opp);
-                PrintWriter oppOut = new PrintWriter(oppSock.getOutputStream(), true);
-                oppOut.println(response);
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-        } else {
-            try{
-                DatagramSocket oppSoc = clientSocketsUDP.get(opp);
-                byte[] reply = response.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), clientPort.get(opp));
-                oppSoc.send(newP);
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-        }
-
-        try {
-            out.println(response);
-            System.out.println("Sent " + response);
-            // out.close();
-
-        } catch (Exception e) {
+        try{
+            Socket oppSock = clientSocketsTCP.get(opp);
+            PrintWriter oppOut = new PrintWriter(oppSock.getOutputStream(), true);
+            oppOut.println(response);
+        } catch (Exception e){
             e.printStackTrace();
         }
     }
@@ -623,436 +466,17 @@ public class tttserver {
         String response = "JOND " + clientID + " " + gameID;
 
         try {
-
             out.println(response);
             System.out.println("Sent " + response);
-
             response = "YRMV " + gameID + " " + opp;
-
-            if(clientSocketsTCP.containsKey(opp)){
-                PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
-                oppOut.println(response);
-            } else {
-                byte[] reply = response.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), clientPort.get(opp));
-                (clientSocketsUDP.get(opp)).send(newP);
-            }
-
+            PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
+            oppOut.println(response);
             try {
                 out.println(response);
-
                 System.out.println("Sent " + response);
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
-            // out.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }
-
-///// UDP STUFF /////
-
-    public static void gameStat(String[] message, DatagramSocket soc, InetAddress address, int port){
-        String gameID = message[1];
-        String response = "";
-
-        if(games.get(Integer.parseInt(message[1]))[1] == null){
-            response = "BORD " + gameID + " " + games.get(Integer.parseInt(message[1]))[0] + " ";
-        } else {
-            response = "BORD " + gameID + " " + games.get(Integer.parseInt(message[1]))[0] + " " + 
-            games.get(Integer.parseInt(message[1]))[1] + " " + games.get(Integer.parseInt(message[1]))[2];
-        }
-        try {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-    
-    }
-
-        // Handles response to client
-    public static void startSession(String[] message, DatagramSocket soc, InetAddress address, int port) {
-        String clientID = message[2];
-        String acknowledgment = "SESS " + version + " " + sessionID;
-        //String value = 
-        sessionsAndClients.put(sessionID, clientID);
-        sessionID++;
-
-        clientSocketsUDP.put(clientID, soc);
-
-        clientAddress.put(clientID, address);
-        clientPort.put(clientID, port);
-
-         // sending goes here!
-        try {
-            byte[] response = acknowledgment.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(response, response.length, address, port);
-            soc.send(newP);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void createGame(String[] message, DatagramSocket soc, InetAddress address, int port){
-        String clientID = message[1];
-        String[] gameElements = {clientID, null, "|*|*|*|*|*|*|*|*|*|", clientID};
-        games.put(gameID, gameElements);
-        String response = "JOND " + clientID + " " + gameID;
-        gameID++;
-
-        try {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void listGames(String[] message, DatagramSocket soc, InetAddress address, int port){
-        String gameList = "GAMS ";
-        if (message[1].equals("CURR")){
-            Set<Integer> keys = games.keySet();
-            for(Integer key: keys){
-                gameList = gameList + (key + " ");
-            }
-        } else if (message[1].equals("ALL")){
-            for (Map.Entry<Integer, String[]> entry : games.entrySet()){
-                String[] gameState = entry.getValue();
-                if (gameState[2].contains("*")){
-                    gameList = gameList + (entry.getKey() + " ");
-                }
-            }
-        } else {
-            gameList = "Error: Please choose CURR or ALL";
-        }
-
-        try{
-            byte[] reply = gameList.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void makeMove(String[] message, DatagramSocket soc, InetAddress address, int port){
-        // Assuming structure: MOVE <game ID> <position> <client ID>
-        String clientID = "";
-        for(Map.Entry<String, Integer> entry : clientPort.entrySet()){
-            if (Objects.equals(entry.getValue(), port)){
-                clientID = entry.getKey();
-            }
-        }
-
-        String[] moveElements = {"MOVE", message[1], message[2], clientID};
-        String response = "";
-        Boolean wasSuccess = false;
-        String opp = "";
-        String playerX = "";
-        String playerO = "";
-        char playerIcon = 'X';
-
-        if(!games.containsKey(Integer.parseInt(message[1]))){
-            System.out.println(moveElements[1]);
-            response = "Error: Game not found.";
-        // Checks if the client's ID matches the IDs of the players in the game map
-        } else if(!moveElements[3].equals((games.get(Integer.parseInt(message[1])))[0]) && !moveElements[3].equals((games.get(Integer.parseInt(message[1])))[1])){
-            response = "Error: You are not a player of this game.";
-        } else {
-            String board = (games.get(Integer.parseInt(message[1])))[2];
-
-            // Checks if player is X or O based on position in map value
-            if (moveElements[3].equals(games.get(Integer.parseInt(message[1]))[1])){
-                playerIcon = 'O';
-                playerO = moveElements[3];
-                playerX = games.get(Integer.parseInt(message[1]))[0];
-                opp = playerX;
-            } else {
-                playerX = moveElements[3];
-                playerO = games.get(Integer.parseInt(message[1]))[1];
-                opp = playerO;
-            }
-
-            int index = 0;
-
-            // Checks if message was sent using coordinate pair for position
-            if(moveElements[2].contains(",")){
-                String[] coordinates = moveElements[2].split(",");
-
-                int row = Integer.parseInt(coordinates[0]);
-                int column = Integer.parseInt(coordinates[1]);
-
-                index = 2 * (((3 * row) - 2) + (column - 1)) - 1;
-
-                System.out.println(index);
-                
-            } else {
-                index = Integer.parseInt(moveElements[2]) * 2 - 1;
-            }
-            // checks if space on board is available for move.
-            if((games.get(Integer.parseInt(message[1]))[2]).charAt(index) != '*') {
-                System.out.println(games.get(Integer.parseInt(message[1]))[2]);
-                System.out.println(games.get(Integer.parseInt(message[1]))[2].charAt(index));
-                response = "Error: Not a valid move.";
-
-            } else if(!moveElements[3].equals((games.get(Integer.parseInt(message[1])))[3])){
-                response = "Error: Not your turn.";
-            } else {
-                // Updates the game status in the game map's value
-                StringBuilder boardBuilder = new StringBuilder(board);
-                boardBuilder.setCharAt(index, playerIcon);
-                (games.get(Integer.parseInt(message[1])))[2] = boardBuilder.toString();
-                (games.get(Integer.parseInt(message[1])))[3] = opp;
-                // Constructs response
-                
-                if(playerIcon == 'X'){
-                    response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                    playerO + " " + playerO + " " + games.get(Integer.parseInt(message[1]))[2]; 
-                } else {
-                    response = "BORD " + moveElements[1] + " " + playerX + " " + 
-                    playerO + " " + playerX + " " + games.get(Integer.parseInt(message[1]))[2]; 
-                }
-                
-                wasSuccess = true;
-
-                //checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon);
-            }
-        }
-        String end = "";
-        String oppProtocol = "";
-        Socket oppSockTCP = null;
-        InetAddress oppAddress = null;
-        int oppPort = 0;
-        if(clientSocketsTCP.containsKey(opp)){
-            oppSockTCP = clientSocketsTCP.get(opp);
-            oppProtocol = "TCP";
-        } else {
-            oppAddress = clientAddress.get(opp);
-            oppPort = clientPort.get(opp);
-            oppProtocol = "UDP";
-        }
-
-        try {
-            if(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
-                response+= " " + moveElements[3];
-                end = "TERM " +  gameID + " " + moveElements[3] + " KTHXBYE";
-                System.out.println(end);
-            } else if(!(games.get(Integer.parseInt(message[1]))[2]).contains("*")){
-                end = "TERM " +  gameID + " " + " KTHXBYE";
-                System.out.println(end);
-            }
-            if(oppProtocol.equals("TCP")){
-                PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
-                oppOut.println(response);
-            } else {
-                byte[] reply = response.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(reply, reply.length, oppAddress, oppPort);
-                soc.send(newP);
-            }
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-
-            if (!end.isEmpty()) {
-                if(oppProtocol.equals("TCP")){
-                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
-                    oppOut.println(end);
-                } else {
-                    reply = end.getBytes(); // message will be the response
-                    newP = new DatagramPacket(reply, reply.length, oppAddress, oppPort);
-                    soc.send(newP);
-                }
-                reply = end.getBytes(); // message will be the response
-                newP = new DatagramPacket(reply, reply.length, address, port);
-                soc.send(newP);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        System.out.println(checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon));
-        if(wasSuccess && !checkWins(games.get(Integer.parseInt(message[1]))[2], playerIcon)){
-            if(playerIcon == 'X'){
-                response = "YRMV " + message[1] + " " + playerO;
-            } else {
-                response = "YRMV " + message[1] + " " + playerX;
-            }
-            try {
-                if(oppProtocol.equals("TCP")){
-                    PrintWriter oppOut = new PrintWriter(oppSockTCP.getOutputStream(), true);
-                    oppOut.println(response);
-                } else {
-                    byte[] reply = response.getBytes(); // message will be the response
-                    DatagramPacket newP = new DatagramPacket(reply, reply.length, oppAddress, oppPort);
-                    soc.send(newP);
-                }
-                byte[] reply = response.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-                soc.send(newP);
-
-                System.out.println("Sent " + response);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            } 
-        }
-    }
-
-    public static void quitGame(String[] message, DatagramSocket soc, InetAddress address, int port) {
-        String clientID = "";
-        for(Map.Entry<String, Integer> entry : clientPort.entrySet()){
-            if (Objects.equals(entry.getValue(), port)){
-                clientID = entry.getKey();
-            }
-        }
-
-        int gameID = Integer.parseInt(message[2]);
-        String[] elements = games.get(gameID);
-        String winner = elements[0];
-        String opp = elements[1];
-        if (elements[0].equals(clientID)) {
-            winner = elements[1];
-            opp = elements[0];
-        }
-        String response = "TERM " +  gameID + " " + winner + " KTHXBYE";
-
-        if(clientSocketsTCP.containsKey(opp)){
-            try {
-                PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
-                oppOut.println(response);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } else {
-            try{
-                byte[] reply = response.getBytes(); // message will be the response
-                DatagramPacket newP = new DatagramPacket(reply, reply.length, clientAddress.get(opp), clientPort.get(opp));
-                soc.send(newP);
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-        }
-
-        try {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-
-        /*
-        try {
-            Socket oppSocket = clientSockets.get(opp);
-            PrintWriter oppOut = new PrintWriter(oppSocket.getOutputStream(), true);
-            out.println(response);
-            oppOut.print(response);
-            System.out.println("Sent " + response);
-            // out.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        */
-
-    
-
-    public static void goodbye(String[] message, DatagramSocket soc, InetAddress address, int port) {
-        String clientID = "";
-        for(Map.Entry<String, Integer> entry : clientPort.entrySet()){
-            if (Objects.equals(entry.getValue(), port)){
-                clientID = entry.getKey();
-            }
-        }
-
-        //System.out.println(Arrays.toString(message));
-
-        List<Integer> quit = new ArrayList<>();
-        for (int i : games.keySet()) {
-            String[] elements = games.get(i);
-            if (Arrays.stream(elements).anyMatch(clientID::equals)) {
-                quit.add(i);
-            }
-        }
-
-        for (int j : quit) {
-            String[] mess = {"QUIT", clientID, Integer.toString(j)};
-            System.out.println(Arrays.toString(mess));
-            quitGame(mess, soc, address, port);
-        }
-    }
-
-    public static void join(String[] message, DatagramSocket soc, InetAddress address, int port) {
-        String clientID = "";
-        for(Map.Entry<String, Integer> entry : clientPort.entrySet()){
-            if (Objects.equals(entry.getValue(), port)){
-                clientID = entry.getKey();
-            }
-        }
-
-
-        System.out.println(Arrays.toString(message));
-
-        int gameID = Integer.parseInt(message[1]);
-        String[] state = games.get(gameID);
-        state[1] = clientID; 
-        games.put(gameID, state);
-        String opp = state[0];
-        
-        String response = "JOND " + clientID + " " + gameID;
-
-        try{
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-        if(clientAddress.get(clientID) == clientAddress.get(opp)){
-            System.out.println("ERROR: CLIENT AND OPP HAVE SAME ADDRESS.");
-        }
-
-        System.out.println("Sent " + response);
-
-        response = "YRMV " + gameID + " " + opp;
-
-        if(clientSocketsTCP.containsKey(opp)){
-            try {
-                PrintWriter oppOut = new PrintWriter((clientSocketsTCP.get(opp)).getOutputStream(), true);
-                oppOut.println(response);
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-        } else {
-            InetAddress oppAddress = clientAddress.get(opp);
-            int oppPort = clientPort.get(opp);
-            try {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, oppAddress, oppPort);
-            soc.send(newP);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        
-        try {
-            byte[] reply = response.getBytes(); // message will be the response
-            DatagramPacket newP = new DatagramPacket(reply, reply.length, address, port);
-            soc.send(newP);
         } catch (Exception e) {
             e.printStackTrace();
         }

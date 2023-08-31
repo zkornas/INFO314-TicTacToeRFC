@@ -10,16 +10,14 @@ public class TTTClient {
     private Scanner scanner;
 	public String hostname;
 	public int port;
-	public String protocol;
 	public String clientId;
 	public boolean inSession;
 	public String currentGameId;
 
-	public TTTClient(String hostname, int port, String protocol) throws IOException {
+	public TTTClient(String hostname, int port) throws IOException {
 		scanner = new Scanner(System.in);
 		this.hostname = hostname;
 		this.port = port;
-		this.protocol = protocol;
 		try {
 			establishConnection();
 		} catch (IOException ex) {
@@ -30,35 +28,17 @@ public class TTTClient {
     
     // Method to establish connection
     private void establishConnection() throws IOException {
-        // Choose the connection type
-        if (protocol.equalsIgnoreCase("TCP")) {
-            tcpSocket = new Socket(hostname, port);
-            in = new BufferedReader(new InputStreamReader(tcpSocket.getInputStream()));
-            out = new PrintWriter(tcpSocket.getOutputStream(), true);
-			System.out.println("Established TCP connection to " + hostname + " on port " + port);
-        } else if (protocol.equalsIgnoreCase("UDP")) {
-            udpSocket = new DatagramSocket();
-			System.out.println("UDP Socket created");
-            // in = new BufferedReader(new InputStreamReader(udpSocket.getInputStream()));
-            // out = new PrintWriter(udpSocket.getOutputStream(), true);
-        } else {
-            throw new IllegalArgumentException("Invalid connection type.");
-        }
+		tcpSocket = new Socket(hostname, port);
+		in = new BufferedReader(new InputStreamReader(tcpSocket.getInputStream()));
+		out = new PrintWriter(tcpSocket.getOutputStream(), true);
+		System.out.println("Established TCP connection to " + hostname + " on port " + port);
     }
     
     // Method to send messages
     public void sendMessage(String message) {
 		try {
-			if (protocol.equals("TCP")) {
-				System.out.println("sending message: " + message);
-				out.println(message);
-			} else {
-				System.out.println("sending message: " + message);
-				byte[] messageBytes = message.getBytes();
-				InetAddress server = InetAddress.getByName(hostname);
-				DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, server, port);
-				udpSocket.send(packet);
-			}
+			System.out.println("sending message: " + message);
+			out.println(message);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -188,21 +168,10 @@ public class TTTClient {
 		Thread serverListenerThread = new Thread(() -> {
 			try {
 				while(true) {
-					if (protocol.equals("TCP")) {
-						String message;
-						while ((message = in.readLine()) != null) {
-							System.out.println("received message: " + message);
-							processCommandFromServer(message);
-						}
-					} else {
-						byte[] buffer = new byte[1024];
-						DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
-						while (true) {
-							udpSocket.receive(dp);
-							String message = new String(dp.getData(), 0, dp.getLength(), "UTF-8");
-							System.out.println("received message: " + message);
-							processCommandFromServer(message);
-						}
+					String message;
+					while ((message = in.readLine()) != null) {
+						System.out.println("received message: " + message);
+						processCommandFromServer(message);
 					}	
 				}
 			} catch (IOException e) {
@@ -237,29 +206,25 @@ public class TTTClient {
 		}
 
 		System.out.println("Ending session...");
-		if (protocol.equals("TCP")) tcpSocket.close();
-		else udpSocket.close();
+		tcpSocket.close();
 		System.exit(1);
 	}
     
     public static void main(String[] args) {
-        // Check the command-line arguments for protocol type
-		String protocol;
+        // Check the command-line arguments
 		String hostname;
 		int port;
 		if (args.length == 3) {
-			protocol = args[0];
 			hostname = args[1];
 			port = Integer.parseInt(args[2]);
 		} else {
 			hostname = "127.0.0.1";
 			port = 3116;
-			protocol = "TCP";
 		}
 
         try {
             // Create the client
-            TTTClient client = new TTTClient(hostname, port, protocol);
+            TTTClient client = new TTTClient(hostname, port);
             // Start the interactive loop
 			client.startGame(); 
 
